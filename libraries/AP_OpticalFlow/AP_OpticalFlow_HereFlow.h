@@ -1,36 +1,35 @@
 #pragma once
+#include "OpticalFlow_backend.h"
 
-#include "AP_OpticalFlow_config.h"
+#if HAL_ENABLE_LIBUAVCAN_DRIVERS
 
-#if AP_OPTICALFLOW_HEREFLOW_ENABLED
+#include <AP_UAVCAN/AP_UAVCAN.h>
 
-#include "AP_OpticalFlow_Backend.h"
-#include <AP_DroneCAN/AP_DroneCAN.h>
+class MeasurementCb;
 
 class AP_OpticalFlow_HereFlow : public OpticalFlow_backend {
 public:
-    AP_OpticalFlow_HereFlow(AP_OpticalFlow &flow);
+    AP_OpticalFlow_HereFlow(OpticalFlow &flow);
 
     void init() override {}
 
     void update() override;
 
-    static bool subscribe_msgs(AP_DroneCAN* ap_dronecan);
+    static void subscribe_msgs(AP_UAVCAN* ap_uavcan);
 
-    static void handle_measurement(AP_DroneCAN *ap_dronecan, const CanardRxTransfer& transfer, const com_hex_equipment_flow_Measurement &msg);
+    static void handle_measurement(AP_UAVCAN* ap_uavcan, uint8_t node_id, const MeasurementCb &cb);
 
 private:
 
-    Vector2f flow_integral, rate_gyro_integral;
+    Vector2f flowRate, bodyRate;
     uint8_t surface_quality;
     float integral_time;
     bool new_data;
     static uint8_t _node_id;
 
     static AP_OpticalFlow_HereFlow* _driver;
-    static AP_DroneCAN* _ap_dronecan;
+    static AP_UAVCAN* _ap_uavcan;
     void _push_state(void);
 
 };
-
-#endif  // AP_OPTICALFLOW_HEREFLOW_ENABLED
+#endif //HAL_ENABLE_LIBUAVCAN_DRIVERS

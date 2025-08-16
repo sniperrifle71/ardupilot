@@ -5,9 +5,13 @@ include ../f103-periph/hwdef.inc
 # setup build for a peripheral firmware
 env AP_PERIPH 1
 
+# use DNA
+define HAL_CAN_DEFAULT_NODE_ID 0
+
+define CAN_APP_NODE_NAME "org.ardupilot.ap_periph_trigger"
 
 # PWM input to hardpoint out
-define AP_PERIPH_PWM_HARDPOINT_ENABLED 1
+define HAL_PERIPH_ENABLE_PWM_HARDPOINT
 
 define HAL_PWM_HARDPOINT_ID_DEFAULT 101
 
@@ -22,4 +26,4 @@ define PWM_HARDPOINT_PIN 77
 
 # no I2C
 undef I2C_ORDER
-undef I2C1
+

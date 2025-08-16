@@ -14,14 +14,11 @@
 */
 #pragma once
 
-#include "AP_VideoTX_config.h"
-
-#if AP_VIDEOTX_ENABLED
-
+#include <AP_HAL/AP_HAL.h>
 #include <AP_Param/AP_Param.h>
+#include <RC_Channel/RC_Channel.h>
 
 #define VTX_MAX_CHANNELS 8
-#define VTX_MAX_POWER_LEVELS 10
 
 class AP_VideoTX {
 public:
@@ -29,7 +26,8 @@ public:
     ~AP_VideoTX();
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_VideoTX);
+    AP_VideoTX(const AP_VideoTX &other) = delete;
+    AP_VideoTX &operator=(const AP_VideoTX&) = delete;
 
     // init - perform required initialisation
     bool init();
@@ -48,9 +46,6 @@ public:
         VTX_PITMODE_ON_DISARM = (1 << 2),
         VTX_UNLOCKED          = (1 << 3),
         VTX_PULLDOWN          = (1 << 4),
-        VTX_SA_ONE_STOP_BIT   = (1 << 5),
-        VTX_SA_IGNORE_CRC     = (1 << 6),
-        VTX_CRSF_IGNORE_STAT  = (1 << 7),
     };
 
     static const char *band_names[];
@@ -62,35 +57,8 @@ public:
         FATSHARK,
         RACEBAND,
         LOW_RACEBAND,
-        BAND_1G3_A,
-        BAND_1G3_B,
-        BAND_X,
-        BAND_3G3_A,
-        BAND_3G3_B,
         MAX_BANDS
     };
-
-    enum class PowerActive {
-        Unknown,
-        Active,
-        Inactive
-    };
-
-    enum VTXType {
-        CRSF = 1U<<0,
-        SmartAudio = 1U<<1,
-        Tramp = 1U<<2
-    };
-
-    struct PowerLevel {
-        uint8_t level;
-        uint16_t mw;
-        uint8_t dbm;
-        uint8_t dac; // SmartAudio v1 dac value
-        PowerActive active;
-    };
-
-    static PowerLevel _power_levels[VTX_MAX_POWER_LEVELS];
 
     static const uint16_t VIDEO_CHANNELS[MAX_BANDS][VTX_MAX_CHANNELS];
 
@@ -104,31 +72,15 @@ public:
     bool update_frequency() const { return _defaults_set && _frequency_mhz != _current_frequency; }
     void update_configured_frequency();
     // get / set power level
-    void set_power_mw(uint16_t power);
-    void set_power_level(uint8_t level, PowerActive active=PowerActive::Active);
-    void set_power_dbm(uint8_t power, PowerActive active=PowerActive::Active);
-    void set_power_dac(uint16_t power, PowerActive active=PowerActive::Active);
-    // add a new dbm setting to those supported
-    uint8_t update_power_dbm(uint8_t power, PowerActive active=PowerActive::Active);
-    void update_all_power_dbm(uint8_t nlevels, const uint8_t levels[]);
+    void set_power_mw(uint16_t power) { _current_power = power; }
+    void set_power_level(uint8_t level);
+    void set_power_dbm(uint8_t power);
     void set_configured_power_mw(uint16_t power);
     uint16_t get_configured_power_mw() const { return _power_mw; }
-    uint16_t get_power_mw() const { return _power_levels[_current_power].mw; }
-
-    // get the power in dbm, rounding appropriately
-    uint8_t get_configured_power_dbm() const {
-        return _power_levels[find_current_power()].dbm;
-    }
-    // get the power "level"
-    uint8_t get_configured_power_level() const {
-        return _power_levels[find_current_power()].level & 0xF;
-    }
-    // get the power "dac"
-    uint8_t get_configured_power_dac() const {
-        return _power_levels[find_current_power()].dac;
-    }
-
-    bool update_power() const;
+    uint16_t get_power_mw() const { return _current_power; }
+    uint8_t get_configured_power_dbm() const;
+    uint8_t get_configured_power_level() const;
+    bool update_power() const { return _defaults_set && _power_mw != _current_power; }
     // change the video power based on switch input
     void change_power(int8_t position);
     // get / set the frequency band
@@ -145,13 +97,11 @@ public:
     bool update_channel() const { return _defaults_set && _channel != _current_channel; }
     void update_configured_channel_and_band();
     // get / set vtx option
-    void set_options(uint16_t options) { _current_options = options; }
-    void set_configured_options(uint16_t options) { _options.set_and_save_ifchanged(options); }
-    uint16_t get_configured_options() const { return _options; }
-    uint16_t get_options() const { return _current_options; }
-    bool has_option(VideoOptions option) const { return _options.get() & uint16_t(option); }
-    bool get_configured_pitmode() const { return _options.get() & uint8_t(AP_VideoTX::VideoOptions::VTX_PITMODE); }
-    bool get_pitmode() const { return _current_options & uint8_t(AP_VideoTX::VideoOptions::VTX_PITMODE); }
+    void set_options(uint8_t options) { _current_options = options; }
+    void set_configured_options(uint8_t options) { _options.set_and_save_ifchanged(options); }
+    uint8_t get_configured_options() const { return _options; }
+    uint8_t get_options() const { return _current_options; }
+    bool has_option(VideoOptions option) const { return _options.get() & uint8_t(option); }
     bool update_options() const;
     // get / set whether the vtx is enabled
     void set_enabled(bool enabled);
@@ -164,22 +114,13 @@ public:
     bool set_defaults();
     // display the current VTX settings in the GCS
     void announce_vtx_settings() const;
-    // force the current values to reflect the configured values
-    void set_power_is_current();
-    void set_freq_is_current();
-    void set_options_are_current() {  _current_options = _options; }
 
     void set_configuration_finished(bool configuration_finished) { _configuration_finished = configuration_finished; }
     bool is_configuration_finished() { return _configuration_finished; }
 
-    // manage VTX backends
-    bool is_provider_enabled(VTXType type) const { return (_types & type) != 0; }
-    void set_provider_enabled(VTXType type) { _types |= type; }
-
     static AP_VideoTX *singleton;
 
 private:
-    uint8_t find_current_power() const;
     // channel frequency
     AP_Int16 _frequency_mhz;
     uint16_t _current_frequency;
@@ -198,8 +139,8 @@ private:
     uint8_t _current_channel;
 
     // vtx options
-    AP_Int16 _options;
-    uint16_t _current_options;
+    AP_Int8 _options;
+    uint8_t _current_options;
 
     AP_Int8 _enabled;
     bool _current_enabled;
@@ -207,15 +148,10 @@ private:
     bool _initialized;
     // when defaults have been configured
     bool _defaults_set;
-    // true when configuration have been applied successfully to the VTX
+    // true when configuration have been applied succesfully to the VTX
     bool _configuration_finished;
-
-    // types of VTX providers
-    uint8_t _types;
 };
 
 namespace AP {
     AP_VideoTX& vtx();
 };
-
-#endif  // AP_VIDEOTX_ENABLED

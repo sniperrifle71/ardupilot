@@ -21,6 +21,7 @@
  */
 
 #include "AP_AHRS.h"
+#include <AP_Motors/AP_Motors.h>
 
 // fwd declarations to avoid include errors
 class AC_AttitudeControl;
@@ -33,7 +34,7 @@ public:
     AP_AHRS_View(AP_AHRS &ahrs, enum Rotation rotation, float pitch_trim_deg=0);
 
     // update state
-    void update();
+    void update(bool skip_ins_update=false);
 
     // empty virtual destructor
     virtual ~AP_AHRS_View() {}
@@ -58,11 +59,6 @@ public:
 
     // apply pitch trim
     void set_pitch_trim(float trim_deg);
-
-    // roll/pitch/yaw euler angles, all in radians
-    float get_roll_rad() const { return roll; }
-    float get_pitch_rad() const { return pitch; }
-    float get_yaw_rad() const { return yaw; }
 
     // helper trig value accessors
     float cos_roll() const {
@@ -89,12 +85,12 @@ public:
       wrappers around ahrs functions which pass-thru directly. See
       AP_AHRS.h for description of each function
      */
-    bool get_location(Location &loc) const WARN_IF_UNUSED {
-        return ahrs.get_location(loc);
+    bool get_position(struct Location &loc) const WARN_IF_UNUSED {
+        return ahrs.get_position(loc);
     }
 
-    bool wind_estimate(Vector3f &wind) {
-        return ahrs.wind_estimate(wind);
+    Vector3f wind_estimate(void) {
+        return ahrs.wind_estimate();
     }
 
     bool airspeed_estimate(float &airspeed_ret) const WARN_IF_UNUSED {
@@ -117,36 +113,40 @@ public:
         return ahrs.get_velocity_NED(vec);
     }
 
+    bool get_expected_mag_field_NED(Vector3f &ret) const WARN_IF_UNUSED {
+        return ahrs.get_expected_mag_field_NED(ret);
+    }
+
     bool get_relative_position_NED_home(Vector3f &vec) const WARN_IF_UNUSED {
         return ahrs.get_relative_position_NED_home(vec);
     }
 
-    bool get_relative_position_NED_origin_float(Vector3f &vec) const WARN_IF_UNUSED {
-        return ahrs.get_relative_position_NED_origin_float(vec);
+    bool get_relative_position_NED_origin(Vector3f &vec) const WARN_IF_UNUSED {
+        return ahrs.get_relative_position_NED_origin(vec);
     }
 
     bool get_relative_position_NE_home(Vector2f &vecNE) const WARN_IF_UNUSED {
         return ahrs.get_relative_position_NE_home(vecNE);
     }
 
-    bool get_relative_position_NE_origin_float(Vector2f &vecNE) const WARN_IF_UNUSED {
-        return ahrs.get_relative_position_NE_origin_float(vecNE);
+    bool get_relative_position_NE_origin(Vector2f &vecNE) const WARN_IF_UNUSED {
+        return ahrs.get_relative_position_NE_origin(vecNE);
     }
 
     void get_relative_position_D_home(float &posD) const {
         ahrs.get_relative_position_D_home(posD);
     }
 
-    bool get_relative_position_D_origin_float(float &posD) const WARN_IF_UNUSED {
-        return ahrs.get_relative_position_D_origin_float(posD);
+    bool get_relative_position_D_origin(float &posD) const WARN_IF_UNUSED {
+        return ahrs.get_relative_position_D_origin(posD);
     }
 
     float groundspeed(void) {
         return ahrs.groundspeed();
     }
 
-    const Vector3f &get_accel_ef(void) const {
-        return ahrs.get_accel_ef();
+    const Vector3f &get_accel_ef_blended(void) const {
+        return ahrs.get_accel_ef_blended();
     }
 
     uint32_t getLastPosNorthEastReset(Vector2f &pos) WARN_IF_UNUSED {
@@ -179,6 +179,8 @@ public:
 
     // Logging Functions
     void Write_AttitudeView(const Vector3f &targets) const;    
+    void Write_Rate( const AP_Motors &motors, const AC_AttitudeControl &attitude_control,
+                        const AC_PosControl &pos_control) const;
 
     float roll;
     float pitch;
@@ -186,19 +188,6 @@ public:
     int32_t roll_sensor;
     int32_t pitch_sensor;
     int32_t yaw_sensor;
-
-
-    // get current rotation
-    // note that this may not be the rotation were actually using, see _pitch_trim_deg
-    enum Rotation get_rotation(void) const {
-        return rotation;
-    }
-
-    // get pitch trim (deg)
-    float get_pitch_trim() const { return _pitch_trim_deg; }
-
-    // Rotate vector from AHRS reference frame to AHRS view refences frame
-    void rotate(Vector3f &vec) const;
 
 private:
     const enum Rotation rotation;

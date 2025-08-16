@@ -7,8 +7,6 @@
 OPT    := $(USE_OPT)
 COPT   := $(USE_COPT)
 CPPOPT := $(USE_CPPOPT)
-ASOPT := $(USE_ASOPT)
-ASXOPT := $(USE_ASXOPT)
 
 # Garbage collection
 ifeq ($(USE_LINK_GC),yes)
@@ -87,7 +85,7 @@ else
 endif
 ASRC      := $(ACSRC) $(ACPPSRC)
 TSRC      := $(TCSRC) $(TCPPSRC)
-SRCPATHS  := $(sort $(dir $(ASMXSRC)) $(dir $(ASMSRC)) $(dir $(ASRC)) $(dir $(TSRC)) $(dir $(LIBCC_CSRC)) $(dir $(LIBCC_ASMXSRC)))
+SRCPATHS  := $(sort $(dir $(ASMXSRC)) $(dir $(ASMSRC)) $(dir $(ASRC)) $(dir $(TSRC)))
 
 # Various directories
 OBJDIR    := $(BUILDDIR)/obj
@@ -101,9 +99,7 @@ TCPPOBJS  := $(addprefix $(OBJDIR)/, $(notdir $(TCPPSRC:.cpp=.o)))
 ASMOBJS   := $(addprefix $(OBJDIR)/, $(notdir $(ASMSRC:.s=.o)))
 ASMXOBJS  := $(addprefix $(OBJDIR)/, $(notdir $(ASMXSRC:.S=.o)))
 OBJS	  := $(ASMXOBJS) $(ASMOBJS) $(ACOBJS) $(TCOBJS) $(ACPPOBJS) $(TCPPOBJS)
-LIBCC_ASMXOBJS := $(addprefix $(OBJDIR)/, $(notdir $(LIBCC_ASMXSRC:.S=.o)))
-LIBCC_TCOBJS := $(addprefix $(OBJDIR)/, $(notdir $(LIBCC_CSRC:.c=.o)))
-LIBCC_OBJS := $(LIBCC_ASMXOBJS) $(LIBCC_TCOBJS)
+
 # Paths
 IINCDIR   := $(patsubst %,-I%,$(INCDIR) $(DINCDIR) $(UINCDIR))
 LLIBDIR   := $(patsubst %,-L%,$(DLIBDIR) $(ULIBDIR))
@@ -119,15 +115,9 @@ LIBS      := $(DLIBS) $(ULIBS)
 # Various settings
 MCFLAGS   := -mcpu=$(MCU)
 ODFLAGS	  = -x --syms
-ASFLAGS   = $(MCFLAGS) $(ADEFS) $(ASOPT)
-ASXFLAGS  = $(MCFLAGS) $(ADEFS) $(ASXOPT)
-ifneq ($(USE_FPU),no)
-  LIBCC_ASXFLAGS = $(ASXFLAGS) $(USE_FPU_OPT)
-else
-  LIBCC_ASXFLAGS = $(ASXFLAGS)
-endif
+ASFLAGS   = $(MCFLAGS) $(ADEFS)
+ASXFLAGS  = $(MCFLAGS) $(ADEFS)
 CFLAGS    = $(MCFLAGS) $(OPT) $(COPT) $(CWARN) $(DEFS)
-LIBCC_CFLAGS = $(CFLAGS)
 CPPFLAGS  = $(MCFLAGS) $(OPT) $(CPPOPT) $(CPPWARN) $(DEFS)
 LDFLAGS   = $(MCFLAGS) $(OPT) -nostartfiles $(LLIBDIR) -Wl,-Map=$(BUILDDIR)/$(PROJECT).map,--cref,--no-warn-mismatch,--library-path=$(RULESPATH)/ld,--script=$(LDSCRIPT)$(LDOPT)
 
@@ -186,13 +176,13 @@ N := x
 C = $(words $N)$(eval N := x $N)
 ECHO = echo "[$C/$T] ChibiOS:"
 endif
-all: PRE_MAKE_ALL_RULE_HOOK $(OBJS) $(LIBCC_OBJS) $(OUTFILES) POST_MAKE_ALL_RULE_HOOK
+all: PRE_MAKE_ALL_RULE_HOOK $(OBJS) $(OUTFILES) POST_MAKE_ALL_RULE_HOOK
 
 PRE_MAKE_ALL_RULE_HOOK:
 
 POST_MAKE_ALL_RULE_HOOK:
 
-$(LIBCC_OBJS) $(OBJS): | $(BUILDDIR) $(OBJDIR) $(LSTDIR)
+$(OBJS): | $(BUILDDIR) $(OBJDIR) $(LSTDIR)
 
 $(BUILDDIR):
 ifneq ($(USE_VERBOSE_COMPILE),yes)
@@ -208,7 +198,7 @@ $(OBJDIR):
 $(LSTDIR):
 	@mkdir -p $(LSTDIR)
 
-$(ACPPOBJS) : $(OBJDIR)/%.o : %.cpp $(BUILDROOT)/chibios_flags.h
+$(ACPPOBJS) : $(OBJDIR)/%.o : %.cpp
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(CPPC) -c $(CPPFLAGS) $(AOPT) -I. $(IINCDIR) $< -o $@
@@ -217,7 +207,7 @@ else
 	@$(CPPC) -c $(CPPFLAGS) $(AOPT) -I. $(IINCDIR) $< -o $@
 endif
 
-$(TCPPOBJS) : $(OBJDIR)/%.o : %.cpp $(BUILDROOT)/chibios_flags.h
+$(TCPPOBJS) : $(OBJDIR)/%.o : %.cpp
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(CPPC) -c $(CPPFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
@@ -226,7 +216,7 @@ else
 	@$(CPPC) -c $(CPPFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
 endif
 
-$(ACOBJS) : $(OBJDIR)/%.o : %.c $(BUILDROOT)/chibios_flags.h
+$(ACOBJS) : $(OBJDIR)/%.o : %.c
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(CC) -c $(CFLAGS) $(AOPT) -I. $(IINCDIR) $< -o $@
@@ -235,7 +225,7 @@ else
 	@$(CC) -c $(CFLAGS) $(AOPT) -I. $(IINCDIR) $< -o $@
 endif
 
-$(TCOBJS) : $(OBJDIR)/%.o : %.c $(BUILDROOT)/chibios_flags.h
+$(TCOBJS) : $(OBJDIR)/%.o : %.c
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(CC) -c $(CFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
@@ -244,16 +234,7 @@ else
 	@$(CC) -c $(CFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
 endif
 
-$(LIBCC_TCOBJS) : $(OBJDIR)/%.o : %.c $(BUILDROOT)/chibios_flags.h
-ifeq ($(USE_VERBOSE_COMPILE),yes)
-	@echo
-	$(CC) -c $(CFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
-else
-	@$(ECHO) Compiling $(<F)
-	@$(CC) -c $(CFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
-endif
-
-$(ASMOBJS) : $(OBJDIR)/%.o : %.s $(BUILDROOT)/chibios_flags.h
+$(ASMOBJS) : $(OBJDIR)/%.o : %.s
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(AS) -c $(ASFLAGS) -I. $(IINCDIR) $< -o $@
@@ -262,22 +243,13 @@ else
 	@$(AS) -c $(ASFLAGS) -I. $(IINCDIR) $< -o $@
 endif
 
-$(ASMXOBJS) : $(OBJDIR)/%.o : %.S $(BUILDROOT)/chibios_flags.h
+$(ASMXOBJS) : $(OBJDIR)/%.o : %.S
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	@echo
 	$(CC) -c $(ASXFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
 else
 	@$(ECHO) Compiling $(<F)
 	@$(CC) -c $(ASXFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
-endif
-
-$(LIBCC_ASMXOBJS) : $(OBJDIR)/%.o : %.S $(BUILDROOT)/chibios_flags.h
-ifeq ($(USE_VERBOSE_COMPILE),yes)
-	@echo
-	$(CC) -c $(LIBCC_ASXFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
-else
-	@$(ECHO) Compiling $(<F)
-	@$(CC) -c $(LIBCC_ASXFLAGS) $(TOPT) -I. $(IINCDIR) $< -o $@
 endif
 
 $(BUILDDIR)/$(PROJECT).elf: $(OBJS) $(LDSCRIPT)
@@ -336,21 +308,12 @@ else
 	@echo Done
 endif
 
-ifneq ($(CRASHCATCHER),)
-lib: $(OBJS) $(LIBCC_OBJS) $(BUILDDIR)/lib$(PROJECT).a $(BUILDDIR)/libcc.a pass
-else
 lib: $(OBJS) $(BUILDDIR)/lib$(PROJECT).a pass
-endif
 
 $(BUILDDIR)/lib$(PROJECT).a: $(OBJS)
 	@$(AR) -r $@ $^
 	@echo
 	@echo ChibiOS: Done!
-
-$(BUILDDIR)/libcc.a: $(LIBCC_OBJS)
-	@$(AR) -r $@ $^
-	@echo
-	@echo CrashCatcher: Done!
 
 pass: $(BUILDDIR)
 	@echo $(foreach f,$(IINCDIR),"$(f);") > $(BUILDDIR)/include_dirs

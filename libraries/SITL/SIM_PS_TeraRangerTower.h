@@ -15,10 +15,10 @@
 /*
   Simulator for the TeraRangerTower proximity sensor
 
-./Tools/autotest/sim_vehicle.py --gdb --debug -v ArduCopter -A --serial5=sim:terarangertower --speedup=1 -l 51.8752066,14.6487840,54.15,0
+./Tools/autotest/sim_vehicle.py --gdb --debug -v ArduCopter -A --uartF=sim:terarangertower --speedup=1 -l 51.8752066,14.6487840,0,0
 
 param set SERIAL5_PROTOCOL 11
-param set PRX1_TYPE 3  # terarangertower
+param set PRX_TYPE 3  # terarangertower
 reboot
 
 arm throttle
@@ -41,18 +41,14 @@ rc 2 1450
 
 #pragma once
 
-#include "SIM_config.h"
-
-#if AP_SIM_PS_TERARANGERTOWER_ENABLED
-
 #include "SIM_SerialProximitySensor.h"
+
+#include <stdio.h>
 
 namespace SITL {
 
 class PS_TeraRangerTower : public SerialProximitySensor {
 public:
-
-    using SerialProximitySensor::SerialProximitySensor;
 
     uint32_t packet_for_location(const Location &location,
                                  uint8_t *data,
@@ -69,5 +65,3 @@ private:
 };
 
 };
-
-#endif  // AP_SIM_PS_TERARANGERTOWER_ENABLED

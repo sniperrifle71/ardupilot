@@ -21,8 +21,6 @@
 
 using namespace SITL;
 
-#include <GCS_MAVLink/GCS.h>
-
 /*
   update engine state, returning power output from 0 to 1
  */
@@ -32,9 +30,6 @@ float ICEngine::update(const struct sitl_input &input)
     bool have_choke = choke_servo>=0;
     bool have_starter = starter_servo>=0;
     float throttle_demand = (input.servos[throttle_servo]-1000) * 0.001f;
-    if (throttle_reversed) {
-        throttle_demand = 1 - throttle_demand;
-    }
 
     state.ignition = have_ignition?input.servos[ignition_servo]>1700:true;
     state.choke = have_choke?input.servos[choke_servo]>1700:false;
@@ -51,12 +46,12 @@ float ICEngine::update(const struct sitl_input &input)
     }
 
     if (state.value != last_state.value) {
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SIM_ICEngine: choke:%u starter:%u ignition:%u",
-                      (unsigned)state.choke,
-                      (unsigned)state.starter,
-                      (unsigned)state.ignition);
+        printf("choke:%u starter:%u ignition:%u\n",
+               (unsigned)state.choke,
+               (unsigned)state.starter,
+               (unsigned)state.ignition);
     }
-
+    
     if (have_ignition && !state.ignition) {
         // engine is off
         if (!state.starter) {
@@ -77,11 +72,11 @@ float ICEngine::update(const struct sitl_input &input)
     }
     if (start_time_us == 0 && state.starter) {
         if (throttle_demand > 0.2) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SIM_ICEngine: too much throttle to start: %.2f", throttle_demand);
+            printf("too much throttle to start: %.2f\n", throttle_demand);
         } else {
             // start the motor
             if (start_time_us == 0) {
-                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SIM_ICEngine: Engine started");
+                printf("Engine started\n");
             }
             start_time_us = now;
         }
@@ -90,7 +85,7 @@ float ICEngine::update(const struct sitl_input &input)
         uint32_t starter_time_us = (now - start_time_us);
         if (starter_time_us > 3000*1000UL && !overheat) {
             overheat = true;
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SIM_ICEngine: Starter overheat");
+            printf("Starter overheat\n");            
         }
     } else {
         overheat = false;
@@ -111,7 +106,7 @@ output:
 
 engine_off:
     if (start_time_us != 0) {
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SIM_ICEngine: Engine stopped");
+        printf("Engine stopped\n");
     }
     last_update_us = AP_HAL::micros64();
     start_time_us = 0;

@@ -14,11 +14,10 @@
  */
 #pragma once
 
-#include "AP_WindVane_config.h"
-
-#if AP_WINDVANE_ENABLED
-
 #include "AP_WindVane.h"
+
+#include <GCS_MAVLink/GCS.h>
+#include <Filter/Filter.h>
 
 class AP_WindVane_Backend
 {
@@ -43,5 +42,3 @@ protected:
     AP_WindVane &_frontend;
 
 };
-
-#endif  // AP_WINDVANE_ENABLED

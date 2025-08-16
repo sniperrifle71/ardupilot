@@ -256,9 +256,6 @@ typedef unsigned int IdxT;
 ** is to copy them to an array of a known type and use the array values.
 */
 static unsigned int l_randomizePivot (void) {
-#if defined(ARDUPILOT_BUILD)
-  return lua_random32();
-#else
   clock_t c = clock();
   time_t t = time(NULL);
   unsigned int buff[sof(c) + sof(t)];
@@ -268,7 +265,6 @@ static unsigned int l_randomizePivot (void) {
   for (i = 0; i < sof(buff); i++)
     rnd += buff[i];
   return rnd;
-#endif
 }
 
 #endif					/* } */

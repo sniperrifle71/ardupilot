@@ -1,13 +1,6 @@
-#include "GCS_config.h"
-#include <AC_Fence/AC_Fence_config.h>
-
-#if HAL_GCS_ENABLED && AP_FENCE_ENABLED
-
 #include "MissionItemProtocol_Fence.h"
 
 #include <AC_Fence/AC_Fence.h>
-#include <AP_InternalError/AP_InternalError.h>
-#include <GCS_MAVLink/GCS.h>
 
 /*
   public function to format mission item as mavlink_mission_item_int_t
@@ -19,7 +12,7 @@ bool MissionItemProtocol_Fence::get_item_as_mission_item(uint16_t seq,
     if (fence == nullptr) {
         return false;
     }
-    const auto num_stored_items = fence->polyfence().num_stored_items();
+    const uint8_t num_stored_items = fence->polyfence().num_stored_items();
     if (seq > num_stored_items) {
         return false;
     }
@@ -52,37 +45,35 @@ bool MissionItemProtocol_Fence::get_item_as_mission_item(uint16_t seq,
         ret_cmd = MAV_CMD_NAV_FENCE_CIRCLE_INCLUSION;
         p1 = fenceitem.radius;
         break;
-#if AC_POLYFENCE_CIRCLE_INT_SUPPORT_ENABLED
     case AC_PolyFenceType::CIRCLE_EXCLUSION_INT:
     case AC_PolyFenceType::CIRCLE_INCLUSION_INT:
         // should never have an AC_PolyFenceItem with these types
         INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
         FALLTHROUGH;
-#endif  // AC_POLYFENCE_CIRCLE_INT_SUPPORT_ENABLED
     case AC_PolyFenceType::END_OF_STORAGE:
         return false;
     }
 
-    ret_packet = {
-        param1: p1,
-        x: fenceitem.loc.x,
-        y: fenceitem.loc.y,
-        z: 0,
-        seq: seq,
-        command: uint16_t(ret_cmd),
-        mission_type: MAV_MISSION_TYPE_FENCE,
-    };
+    ret_packet.command = ret_cmd;
+    ret_packet.param1 = p1;
+    ret_packet.x = fenceitem.loc.x;
+    ret_packet.y = fenceitem.loc.y;
+    ret_packet.z = 0;
 
     return true;
 }
 
-MAV_MISSION_RESULT MissionItemProtocol_Fence::get_item(uint16_t seq, mavlink_mission_item_int_t &ret_packet)
+MAV_MISSION_RESULT MissionItemProtocol_Fence::get_item(const GCS_MAVLINK &_link,
+                                                       const mavlink_message_t &msg,
+                                                       const mavlink_mission_request_int_t &packet,
+                                                       mavlink_mission_item_int_t &ret_packet)
 {
-    if (seq >= _fence.polyfence().num_stored_items()) {
+    const uint8_t num_stored_items = _fence.polyfence().num_stored_items();
+    if (packet.seq > num_stored_items) {
         return MAV_MISSION_INVALID_SEQUENCE;
     }
 
-    if (!get_item_as_mission_item(seq, ret_packet)) {
+    if (!get_item_as_mission_item(packet.seq, ret_packet)) {
         return MAV_MISSION_ERROR;
     }
 
@@ -97,7 +88,7 @@ uint16_t MissionItemProtocol_Fence::item_count() const
     return _fence.polyfence().num_stored_items();
 }
 
-MAV_MISSION_RESULT MissionItemProtocol_Fence::convert_MISSION_ITEM_INT_to_AC_PolyFenceItem(const mavlink_mission_item_int_t &mission_item_int, AC_PolyFenceItem &ret)
+static MAV_MISSION_RESULT convert_MISSION_ITEM_INT_to_AC_PolyFenceItem(const mavlink_mission_item_int_t &mission_item_int, AC_PolyFenceItem &ret)
 {
     if (mission_item_int.frame != MAV_FRAME_GLOBAL &&
         mission_item_int.frame != MAV_FRAME_GLOBAL_INT &&
@@ -111,16 +102,10 @@ MAV_MISSION_RESULT MissionItemProtocol_Fence::convert_MISSION_ITEM_INT_to_AC_Pol
     switch (mission_item_int.command) {
     case MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION:
         ret.type = AC_PolyFenceType::POLYGON_INCLUSION;
-        if (mission_item_int.param1 > 255) {
-            return MAV_MISSION_INVALID_PARAM1;
-        }
         ret.vertex_count = mission_item_int.param1;
         break;
     case MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION:
         ret.type = AC_PolyFenceType::POLYGON_EXCLUSION;
-        if (mission_item_int.param1 > 255) {
-            return MAV_MISSION_INVALID_PARAM1;
-        }
         ret.vertex_count = mission_item_int.param1;
         break;
     case MAV_CMD_NAV_FENCE_RETURN_POINT:
@@ -226,11 +211,11 @@ MAV_MISSION_RESULT MissionItemProtocol_Fence::allocate_receive_resources(const u
         return MAV_MISSION_ERROR;
     }
 
-    const uint32_t allocation_size = count * sizeof(AC_PolyFenceItem);
+    const uint16_t allocation_size = count * sizeof(AC_PolyFenceItem);
     if (allocation_size != 0) {
         _new_items = (AC_PolyFenceItem*)malloc(allocation_size);
         if (_new_items == nullptr) {
-            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "Out of memory for upload");
+            gcs().send_text(MAV_SEVERITY_WARNING, "Out of memory for upload");
             return MAV_MISSION_ERROR;
         }
     }
@@ -241,7 +226,7 @@ MAV_MISSION_RESULT MissionItemProtocol_Fence::allocate_receive_resources(const u
 MAV_MISSION_RESULT MissionItemProtocol_Fence::allocate_update_resources()
 {
     const uint16_t _item_count = _fence.polyfence().num_stored_items();
-    _updated_mask = NEW_NOTHROW uint8_t[(_item_count+7)/8];
+    _updated_mask = new uint8_t[(_item_count+7/8)];
     if (_updated_mask == nullptr) {
         return MAV_MISSION_ERROR;
     }
@@ -254,5 +239,3 @@ MAV_MISSION_RESULT MissionItemProtocol_Fence::allocate_update_resources()
     _new_items_count = _item_count;
     return MAV_MISSION_ACCEPTED;
 }
-
-#endif // HAL_GCS_ENABLED && AP_FENCE_ENABLED

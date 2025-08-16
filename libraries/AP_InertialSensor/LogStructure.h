@@ -71,16 +71,6 @@ struct PACKED log_IMU {
     uint16_t gyro_rate, accel_rate;
 };
 
-// @LoggerMessage: ISBH
-// @Description: InertialSensor Batch Logging Header
-// @Field: TimeUS: Time since system startup
-// @Field: N: batch sequence number
-// @Field: type: indicates if this is accel or gyro data
-// @Field: instance: IMU sensor instance
-// @Field: mul: multiplier to be applied to samples in this batch
-// @Field: smp_cnt: samples in this batch
-// @Field: SampleUS: timestamp of first sample
-// @Field: smp_rate: rate at which samples have been collected
 struct PACKED log_ISBH {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -94,14 +84,6 @@ struct PACKED log_ISBH {
 };
 static_assert(sizeof(log_ISBH) < 256, "log_ISBH is over-size");
 
-// @LoggerMessage: ISBD
-// @Description: InertialSensor Batch Logging Data
-// @Field: TimeUS: Time since system startup
-// @Field: N: batch sequence number
-// @Field: seqno: sample sequence number
-// @Field: x: x-axis sample value
-// @Field: y: y-axis sample value
-// @Field: z: z-axis sample value
 struct PACKED log_ISBD {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -131,13 +113,13 @@ struct PACKED log_Vibe {
 
 #define LOG_STRUCTURE_FROM_INERTIALSENSOR        \
     { LOG_ACC_MSG, sizeof(log_ACC), \
-      "ACC", "QBQfff",        "TimeUS,I,SampleUS,AccX,AccY,AccZ", "s#sooo", "F-F000" , true }, \
+      "ACC", "QBQfff",        "TimeUS,I,SampleUS,AccX,AccY,AccZ", "s#sooo", "F-F000" }, \
     { LOG_GYR_MSG, sizeof(log_GYR), \
-      "GYR", "QBQfff",        "TimeUS,I,SampleUS,GyrX,GyrY,GyrZ", "s#sEEE", "F-F000" , true }, \
+      "GYR", "QBQfff",        "TimeUS,I,SampleUS,GyrX,GyrY,GyrZ", "s#sEEE", "F-F000" }, \
     { LOG_IMU_MSG, sizeof(log_IMU), \
-      "IMU",  "QBffffffIIfBBHH", "TimeUS,I,GyrX,GyrY,GyrZ,AccX,AccY,AccZ,EG,EA,T,GH,AH,GHz,AHz", "s#EEEooo--O--zz", "F-000000-----00" , true }, \
+      "IMU",  "QBffffffIIfBBHH", "TimeUS,I,GyrX,GyrY,GyrZ,AccX,AccY,AccZ,EG,EA,T,GH,AH,GHz,AHz", "s#EEEooo--O--zz", "F-000000-----00" }, \
     { LOG_VIBE_MSG, sizeof(log_Vibe), \
-      "VIBE", "QBfffI", "TimeUS,IMU,VibeX,VibeY,VibeZ,Clip", "s#ooo-", "F-000-" , true }, \
+      "VIBE", "QBfffI", "TimeUS,IMU,VibeX,VibeY,VibeZ,Clip", "s#----", "F-----" }, \
     { LOG_ISBH_MSG, sizeof(log_ISBH), \
       "ISBH", "QHBBHHQf", "TimeUS,N,type,instance,mul,smp_cnt,SampleUS,smp_rate", "s-----sz", "F-----F-" },  \
     { LOG_ISBD_MSG, sizeof(log_ISBD), \

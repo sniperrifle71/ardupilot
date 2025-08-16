@@ -32,6 +32,7 @@ class AP_InertialSensor_Invensense : public AP_InertialSensor_Backend
 
 public:
     virtual ~AP_InertialSensor_Invensense();
+
     static AP_InertialSensor_Invensense &from(AP_InertialSensor_Backend &backend) {
         return static_cast<AP_InertialSensor_Invensense&>(backend);
     }
@@ -45,8 +46,8 @@ public:
                                             enum Rotation rotation);
 
     /* update accel and gyro state */
-    bool update() override __RAMFUNC__; /* front end */
-    void accumulate() override; /* front end */
+    bool update() override;
+    void accumulate() override;
 
     /*
      * Return an AuxiliaryBus if the bus driver allows it
@@ -57,11 +58,6 @@ public:
 
     // get a startup banner to output to the GCS
     bool get_output_banner(char* banner, uint8_t banner_len) override;
-
-    // get the gyro backend rate in Hz at which the FIFO is being read
-    uint16_t get_gyro_backend_rate_hz() const override {
-        return _gyro_backend_rate_hz;
-    }
 
     enum Invensense_Type {
         Invensense_MPU6000=0,
@@ -90,36 +86,38 @@ private:
     bool _check_whoami();
 
     void _set_filter_register(void);
-    void _fifo_reset(bool log_error) __RAMFUNC__;
-    void _fast_fifo_reset() __RAMFUNC__;
-
+    void _fifo_reset(bool log_error);
     bool _has_auxiliary_bus();
 
     /* Read samples from FIFO (FIFO enabled) */
-    void _read_fifo() __RAMFUNC__;
+    void _read_fifo();
 
     /* Check if there's data available by either reading DRDY pin or register */
-    bool _data_ready() __RAMFUNC__;
+    bool _data_ready();
 
     /* Poll for new data (non-blocking) */
-    void _poll_data() __RAMFUNC__;
+    void _poll_data();
 
     // debug function to watch for register changes
-    void _check_register_change(void) __RAMFUNC__;
+    void _check_register_change(void);
 
     /* Read and write functions taking the differences between buses into
      * account */
-    bool _block_read(uint8_t reg, uint8_t *buf, uint32_t size) __RAMFUNC__;
-    uint8_t _register_read(uint8_t reg) __RAMFUNC__;
-    void _register_write(uint8_t reg, uint8_t val, bool checked=false) __RAMFUNC__;
+    bool _block_read(uint8_t reg, uint8_t *buf, uint32_t size);
+    uint8_t _register_read(uint8_t reg);
+    void _register_write(uint8_t reg, uint8_t val, bool checked=false);
 
-    bool _accumulate(uint8_t *samples, uint8_t n_samples) __RAMFUNC__;
-    bool _accumulate_sensor_rate_sampling(uint8_t *samples, uint8_t n_samples) __RAMFUNC__;
+    bool _accumulate(uint8_t *samples, uint8_t n_samples);
+    bool _accumulate_sensor_rate_sampling(uint8_t *samples, uint8_t n_samples);
 
-    bool _check_raw_temp(int16_t t2) __RAMFUNC__;
+    bool _check_raw_temp(int16_t t2);
 
     int16_t _raw_temp;
     
+    // instance numbers of accel and gyro data
+    uint8_t _gyro_instance;
+    uint8_t _accel_instance;
+
     float temp_sensitivity = 1.0f/340; // degC/LSB
     float temp_zero = 36.53f; // degC
     
@@ -132,17 +130,11 @@ private:
     LowPassFilter2pFloat _temp_filter;
     uint32_t last_reset_ms;
     uint8_t reset_count;
-    uint8_t fast_reset_count;
-    uint8_t last_fast_reset_count;
-    uint32_t last_fast_reset_count_report_ms;
 
     enum Rotation _rotation;
 
     // enable checking of unexpected resets of offsets
     bool _enable_offset_checking;
-
-    // enable fast fifo reset instead of full fifo reset
-    bool _enable_fast_fifo_reset;
 
     // ICM-20602 y offset register. See usage for explanation
     uint8_t _saved_y_ofs_high;
@@ -187,7 +179,7 @@ private:
         Vector3f gyro;
         uint8_t accel_count;
         uint8_t gyro_count;
-        LowPassFilterConstDtVector3f accel_filter{4000, 188};
+        LowPassFilterVector3f accel_filter{4000, 188};
     } _accum;
 };
 

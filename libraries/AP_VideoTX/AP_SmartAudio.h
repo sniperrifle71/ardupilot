@@ -15,11 +15,16 @@
 
 #pragma once
 
-#include "AP_VideoTX_config.h"
+#include <AP_HAL/AP_HAL.h>
 
-#if AP_SMARTAUDIO_ENABLED
+#ifndef HAL_SMARTAUDIO_ENABLED
+#define HAL_SMARTAUDIO_ENABLED !HAL_MINIMIZE_FEATURES
+#endif
+
+#if HAL_SMARTAUDIO_ENABLED
 
 #include <AP_Param/AP_Param.h>
+#include <AP_SerialManager/AP_SerialManager.h>
 #include <AP_HAL/utility/RingBuffer.h>
 #include "AP_VideoTX.h"
 
@@ -61,7 +66,7 @@
 
 #define SMARTAUDIO_BANDCHAN_TO_INDEX(band, channel) (band * VTX_MAX_CHANNELS + (channel))
 
-//#define SA_DEBUG
+// #define SA_DEBUG
 
 class AP_SmartAudio
 {
@@ -80,8 +85,7 @@ public:
         uint16_t frequency;
         uint8_t  band;
 
-        uint8_t num_power_levels;
-        uint8_t power_levels[8];
+        uint8_t* power_levels;
         uint8_t  power_in_dbm;
 
         uint16_t pitmodeFrequency;
@@ -132,10 +136,14 @@ public:
     } PACKED;
 
     struct SettingsExtendedResponseFrame {
-        SettingsResponseFrame settings;
-        uint8_t power_dbm;  // current power
-        uint8_t num_power_levels;
-        uint8_t power_levels[8];   // first in the list of dbm levels
+        FrameHeader header;
+        uint8_t channel;
+        uint8_t power;
+        uint8_t operationMode;
+        uint16_t frequency;
+        uint8_t power_dbm;
+        uint8_t power_levels_len;
+        uint8_t power_dbm_levels;   // first in the list of dbm levels
         //uint8_t crc;
     } PACKED;
 
@@ -156,7 +164,9 @@ public:
     }
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_SmartAudio);
+    AP_SmartAudio(const AP_SmartAudio &other) = delete;
+
+    AP_SmartAudio &operator=(const AP_SmartAudio&) = delete;
 
     // init threads and lookup for io uart.
     bool init();
@@ -207,14 +217,12 @@ private:
 
 #ifdef SA_DEBUG
     // utility method for debugging.
-    void print_bytes_to_hex_string(const char* msg, const uint8_t buf[], uint8_t length);
+    void print_bytes_to_hex_string(const char* msg, const uint8_t buf[], uint8_t x,uint8_t offset);
 #endif
     void print_settings(const Settings* settings);
 
     void update_vtx_params();
     void update_vtx_settings(const Settings& settings);
-
-    bool ignore_crc() const { return AP::vtx().has_option(AP_VideoTX::VideoOptions::VTX_SA_IGNORE_CRC); }
 
     // looping over requests
     void loop();

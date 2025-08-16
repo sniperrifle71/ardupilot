@@ -13,11 +13,13 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AP_WindVane_config.h"
-
-#if AP_WINDVANE_AIRSPEED_ENABLED
-
 #include "AP_WindVane_Airspeed.h"
+
+// constructor
+AP_WindVane_Airspeed::AP_WindVane_Airspeed(AP_WindVane &frontend) :
+    AP_WindVane_Backend(frontend)
+{
+}
 
 void AP_WindVane_Airspeed::update_speed()
 {
@@ -26,5 +28,3 @@ void AP_WindVane_Airspeed::update_speed()
         _frontend._speed_apparent_raw = airspeed->get_raw_airspeed();
     }
 }
-
-#endif  // AP_WINDVANE_AIRSPEED_ENABLED

@@ -35,14 +35,12 @@ class VectorN
 {
 public:
     // trivial ctor
-    inline VectorN() {
-        for (auto i = 0; i < N; i++) {
-            _v[i] = T{};
-        }
+    inline VectorN<T,N>() {
+        memset(_v, 0, sizeof(T)*N);
     }
 
     // vector ctor
-    inline VectorN(const T *v) {
+    inline VectorN<T,N>(const T *v) {
         memcpy(_v, v, sizeof(T)*N);
     }
     
@@ -171,6 +169,6 @@ public:
         }
     }
 
-protected:
+private:
     T _v[N];
 };

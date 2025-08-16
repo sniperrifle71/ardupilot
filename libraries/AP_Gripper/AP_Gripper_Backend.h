@@ -17,8 +17,6 @@
 
 #include <AP_Gripper/AP_Gripper.h>
 
-#if AP_GRIPPER_ENABLED
-
 class AP_Gripper_Backend {
 public:
     AP_Gripper_Backend(struct AP_Gripper::Backend_Config &_config) :
@@ -45,7 +43,7 @@ public:
     // grabbed - returns true if currently in grabbed position
     virtual bool grabbed() const = 0;
 
-    // type-specific initialisations:
+    // type-specific intiailisations:
     virtual void init_gripper() = 0;
 
     // type-specific periodic updates:
@@ -53,9 +51,5 @@ public:
 
 protected:
 
-    uint32_t _last_grab_or_release; // ms; time last grab or release happened
-
     struct AP_Gripper::Backend_Config &config;
 };
-
-#endif  // AP_GRIPPER_ENABLED

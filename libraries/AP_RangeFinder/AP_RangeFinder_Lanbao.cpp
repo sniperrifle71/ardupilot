@@ -15,11 +15,8 @@
 /*
   driver for Lanbao PSK-CM8JL65-CC5 Lidar
  */
-#include "AP_RangeFinder_Lanbao.h"
-
-#if AP_RANGEFINDER_LANBAO_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
+#include "AP_RangeFinder_Lanbao.h"
 #include <AP_Math/crc.h>
 #include <stdio.h>
 
@@ -31,10 +28,10 @@ extern const AP_HAL::HAL& hal;
   the sky. For this reason we limit the max range to 6 meters as
   otherwise we may be giving false data
  */
-#define LANBAO_MAX_RANGE_M 6
+#define LANBAO_MAX_RANGE_CM 600
 
 // read - return last value measured by sensor
-bool AP_RangeFinder_Lanbao::get_reading(float &reading_m)
+bool AP_RangeFinder_Lanbao::get_reading(uint16_t &reading_cm)
 {
     if (uart == nullptr) {
         return false;
@@ -46,9 +43,10 @@ bool AP_RangeFinder_Lanbao::get_reading(float &reading_m)
     // format is: [ 0xA5 | 0x5A | distance-MSB-mm | distance-LSB-mm | crc16 ]
 
     // read any available lines from the lidar
-    for (auto i=0; i<8192; i++) {
-        uint8_t b;
-        if (!uart->read(b)) {
+    int16_t nbytes = uart->available();
+    while (nbytes-- > 0) {
+        int16_t b = uart->read();
+        if (b == -1) {
             break;
         }
         if (buf_len == 0 && b != 0xA5) {
@@ -77,10 +75,8 @@ bool AP_RangeFinder_Lanbao::get_reading(float &reading_m)
         }
     }
     if (count > 0) {
-        reading_m = (sum_range / count);
-        return reading_m <= LANBAO_MAX_RANGE_M?true:false;
+        reading_cm = (sum_range / count) * 100;
+        return reading_cm <= LANBAO_MAX_RANGE_CM?true:false;
     }
     return false;
 }
-
-#endif  // AP_RANGEFINDER_LANBAO_ENABLED

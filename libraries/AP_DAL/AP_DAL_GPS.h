@@ -4,6 +4,8 @@
 
 #include <AP_Logger/LogStructure.h>
 
+#include <AP_Vehicle/AP_Vehicle_Type.h>
+
 class AP_DAL_GPS {
 public:
 
@@ -26,9 +28,7 @@ public:
     GPS_Status status() const {
         return status(primary_sensor());
     }
-    const Location &location(uint8_t instance) const {
-        return tmp_location[instance];
-    }
+    const Location &location(uint8_t instance) const;
     bool have_vertical_velocity(uint8_t instance) const {
         return _RGPI[instance].have_vertical_velocity;
     }
@@ -127,10 +127,6 @@ public:
     }
     void handle_message(const log_RGPJ &msg) {
         _RGPJ[msg.instance] = msg;
-
-        tmp_location[msg.instance].lat = msg.lat;
-        tmp_location[msg.instance].lng = msg.lng;
-        tmp_location[msg.instance].alt = msg.alt;
     }
 
 private:
@@ -138,6 +134,4 @@ private:
     struct log_RGPH _RGPH;
     struct log_RGPI _RGPI[GPS_MAX_INSTANCES];
     struct log_RGPJ _RGPJ[GPS_MAX_INSTANCES];
-
-    Location tmp_location[GPS_MAX_INSTANCES];
 };

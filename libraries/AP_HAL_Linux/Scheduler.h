@@ -54,12 +54,6 @@ public:
      */
     bool thread_create(AP_HAL::MemberProc, const char *name, uint32_t stack_size, priority_base base, int8_t priority) override;
     
-    /*
-      set cpu affinity mask to be applied on initialization - setting it
-      later has no effect.
-     */
-    void set_cpu_affinity(const cpu_set_t &cpu_affinity) { _cpu_affinity = cpu_affinity; }
-
 private:
     class SchedulerThread : public PeriodicThread {
     public:
@@ -75,8 +69,6 @@ private:
     };
 
     void     init_realtime();
-
-    void     init_cpu_affinity();
 
     void _wait_all_threads();
 
@@ -116,7 +108,6 @@ private:
     pthread_t _main_ctx;
 
     Semaphore _io_semaphore;
-    cpu_set_t _cpu_affinity;
 };
 
 }

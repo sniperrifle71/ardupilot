@@ -1,11 +1,8 @@
 #pragma once
 
-#include "AC_Avoidance_config.h"
-
-#if AP_OAPATHPLANNER_ENABLED
-
 #include <AP_Common/AP_Common.h>
 #include <AP_Common/AP_ExpandingArray.h>
+#include <AP_HAL/AP_HAL.h>
 
 /*
  * Visibility graph used by Dijkstra's algorithm for path planning around fence, stay-out zones and moving obstacles
@@ -14,7 +11,9 @@ class AP_OAVisGraph {
 public:
     AP_OAVisGraph();
 
-    CLASS_NO_COPY(AP_OAVisGraph);  /* Do not allow copies */
+    /* Do not allow copies */
+    AP_OAVisGraph(const AP_OAVisGraph &other) = delete;
+    AP_OAVisGraph &operator=(const AP_OAVisGraph&) = delete;
 
     // types of items held in graph
     enum OAType : uint8_t {
@@ -58,5 +57,3 @@ private:
     AP_ExpandingArray<VisGraphItem> _items;
     uint16_t _num_items;
 };
-
-#endif  // AP_OAPATHPLANNER_ENABLED

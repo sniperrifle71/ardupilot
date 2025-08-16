@@ -14,9 +14,6 @@
  */
 
 #include "AP_RangeFinder_MAVLink.h"
-
-#if AP_RANGEFINDER_MAVLINK_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 
 /*
@@ -27,49 +24,38 @@ void AP_RangeFinder_MAVLink::handle_msg(const mavlink_message_t &msg)
     mavlink_distance_sensor_t packet;
     mavlink_msg_distance_sensor_decode(&msg, &packet);
 
-    // only accept distances for the configured orientation
-    if (packet.orientation == orientation()) {
+    // only accept distances for downward facing sensors
+    if (packet.orientation == MAV_SENSOR_ROTATION_PITCH_270) {
         state.last_reading_ms = AP_HAL::millis();
-        distance = packet.current_distance * 0.01;
-        _max_distance = packet.max_distance * 0.01;
-        _min_distance = packet.min_distance * 0.01;
+        distance_cm = packet.current_distance;
+        _max_distance_cm = packet.max_distance;
+        _min_distance_cm = packet.min_distance;
         sensor_type = (MAV_DISTANCE_SENSOR)packet.type;
-        signal_quality = packet.signal_quality;
-        if (signal_quality == 0) {
-            // MAVLink's 0 means invalid/unset, so we map it to -1
-            signal_quality = RangeFinder::SIGNAL_QUALITY_UNKNOWN;
-        } else if (signal_quality == 1) {
-            // Map 1 to 0 as that is what ardupilot uses as the worst signal quality
-            signal_quality = RangeFinder::SIGNAL_QUALITY_MIN;
-        }
     }
 }
 
-float AP_RangeFinder_MAVLink::max_distance() const
+int16_t AP_RangeFinder_MAVLink::max_distance_cm() const
 {
-    const auto baseclass_max_distance = AP_RangeFinder_Backend::max_distance();
-
-    if (is_zero(_max_distance) && is_zero(_min_distance)) {
+    if (_max_distance_cm == 0 && _min_distance_cm == 0) {
         // we assume if both of these are zero that we ignore both
-        return baseclass_max_distance;
+        return params.max_distance_cm;
     }
 
-    // return the smaller of the base class's distance and what we
-    // receive from the network:
-    return MIN(baseclass_max_distance, _max_distance);
+    if (params.max_distance_cm < _max_distance_cm) {
+        return params.max_distance_cm;
+    }
+    return _max_distance_cm;
 }
-float AP_RangeFinder_MAVLink::min_distance() const
+int16_t AP_RangeFinder_MAVLink::min_distance_cm() const
 {
-    const auto baseclass_min_distance = AP_RangeFinder_Backend::min_distance();
-
-    if (is_zero(_max_distance) && is_zero(_min_distance)) {
+    if (_max_distance_cm == 0 && _min_distance_cm == 0) {
         // we assume if both of these are zero that we ignore both
-        return baseclass_min_distance;
+        return params.min_distance_cm;
     }
-
-    // return the larger of the base class's distance and what we
-    // receive from the network:
-    return MAX(baseclass_min_distance, _min_distance);
+    if (params.min_distance_cm > _min_distance_cm) {
+        return params.min_distance_cm;
+    }
+    return _min_distance_cm;
 }
 
 /*
@@ -81,13 +67,9 @@ void AP_RangeFinder_MAVLink::update(void)
     //data in 500ms, dump it
     if (AP_HAL::millis() - state.last_reading_ms > AP_RANGEFINDER_MAVLINK_TIMEOUT_MS) {
         set_status(RangeFinder::Status::NoData);
-        state.distance_m = 0.0f;
-        state.signal_quality_pct = RangeFinder::SIGNAL_QUALITY_UNKNOWN;
+        state.distance_cm = 0;
     } else {
-        state.distance_m = distance;
-        state.signal_quality_pct = signal_quality;
+        state.distance_cm = distance_cm;
         update_status();
     }
 }
-
-#endif

@@ -4,18 +4,22 @@
 
 #include "Copter.h"
 
-#if AC_PRECLAND_ENABLED
+#if PRECISION_LANDING == ENABLED
 
 void Copter::init_precland()
 {
-    // scheduler table specifies 400Hz, but we can call it no faster
-    // than the scheduler loop rate:
-    copter.precland.init(MIN(400, scheduler.get_loop_rate_hz()));
+    copter.precland.init(400);
 }
 
 void Copter::update_precland()
 {
-    // alt will be unused if we pass false through as the second parameter:
-    return precland.update(rangefinder_state.alt_glitch_protected_m * 100.0, rangefinder_alt_ok());
+    int32_t height_above_ground_cm = current_loc.alt;
+
+    // use range finder altitude if it is valid, otherwise use home alt
+    if (rangefinder_alt_ok()) {
+        height_above_ground_cm = rangefinder_state.alt_cm_glitch_protected;
+    }
+
+    precland.update(height_above_ground_cm, rangefinder_alt_ok());
 }
 #endif

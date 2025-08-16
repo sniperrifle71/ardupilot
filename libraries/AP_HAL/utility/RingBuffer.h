@@ -52,9 +52,6 @@ public:
     // set size of ringbuffer, caller responsible for locking
     bool set_size(uint32_t size);
 
-    // set size of ringbuffer, reducing down if size can't be achieved
-    bool set_size_best(uint32_t size);
-    
     // advance the read pointer (discarding bytes)
     bool advance(uint32_t n);
 
@@ -116,7 +113,7 @@ public:
         // gives one less byte than requested. We round up to a full
         // multiple of the object size so that we always get aligned
         // elements, which makes the readptr() method possible
-        buffer = NEW_NOTHROW ByteBuffer(((_size+1) * sizeof(T)));
+        buffer = new ByteBuffer(((_size+1) * sizeof(T)));
         external_buf = false;
     }
 
@@ -131,13 +128,7 @@ public:
     }
 
     // return size of ringbuffer
-    uint32_t get_size(void) const {
-        if (buffer == nullptr) {
-            return 0;
-        }
-        uint32_t size = buffer->get_size() / sizeof(T);
-        return size>0?size-1:0;
-    }
+    uint32_t get_size(void) const { return buffer->get_size() / sizeof(T); }
 
     // set size of ringbuffer, caller responsible for locking
     bool set_size(uint32_t size) { return buffer->set_size(((size+1) * sizeof(T))); }
@@ -247,10 +238,7 @@ public:
     // !!! Note ObjectBuffer_TS is a duplicate of this, update in both places !!!
     const T *readptr(uint32_t &n) {
         uint32_t avail_bytes = 0;
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wcast-align"
         const T *ret = (const T *)buffer->readptr(avail_bytes);
-        #pragma GCC diagnostic pop
         if (!ret || avail_bytes < sizeof(T)) {
             return nullptr;
         }
@@ -288,7 +276,7 @@ public:
         // gives one less byte than requested. We round up to a full
         // multiple of the object size so that we always get aligned
         // elements, which makes the readptr() method possible
-        buffer = NEW_NOTHROW ByteBuffer(((_size+1) * sizeof(T)));
+        buffer = new ByteBuffer(((_size+1) * sizeof(T)));
     }
     ~ObjectBuffer_TS(void) {
         delete buffer;
@@ -297,11 +285,7 @@ public:
     // return size of ringbuffer
     uint32_t get_size(void) {
         WITH_SEMAPHORE(sem);
-        if (buffer == nullptr) {
-            return 0;
-        }
-        uint32_t size = buffer->get_size() / sizeof(T);
-        return size>0?size-1:0;
+        return buffer->get_size() / sizeof(T);
     }
 
     // set size of ringbuffer, caller responsible for locking
@@ -430,10 +414,7 @@ public:
     const T *readptr(uint32_t &n) {
         WITH_SEMAPHORE(sem);
         uint32_t avail_bytes = 0;
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wcast-align"
         const T *ret = (const T *)buffer->readptr(avail_bytes);
-        #pragma GCC diagnostic pop
         if (!ret || avail_bytes < sizeof(T)) {
             return nullptr;
         }
@@ -472,7 +453,7 @@ public:
     ObjectArray(uint16_t size_) {
         _size = size_;
         _head = _count = 0;
-        _buffer = NEW_NOTHROW T[_size];
+        _buffer = new T[_size];
     }
     ~ObjectArray(void) {
         delete[] _buffer;

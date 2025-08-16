@@ -5,7 +5,7 @@
 
 #include "AP_Baro_Backend.h"
 
-#if AP_BARO_EXTERNALAHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
 
 class AP_Baro_ExternalAHRS : public AP_Baro_Backend
 {
@@ -21,4 +21,5 @@ private:
     uint16_t count;
 };
 
-#endif // AP_BARO_EXTERNALAHRS_ENABLED
+#endif // HAL_EXTERNAL_AHRS_ENABLED
+

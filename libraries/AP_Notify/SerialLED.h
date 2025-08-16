@@ -14,10 +14,6 @@
  */
 #pragma once
 
-#include "AP_Notify_config.h"
-
-#if AP_NOTIFY_SERIALLED_ENABLED
-
 #include "RGBLed.h"
 #include <AP_Common/AP_Common.h>
 #include <AP_SerialLED/AP_SerialLED.h>
@@ -45,5 +41,3 @@ private:
 
     HAL_Semaphore _sem;
 };
-
-#endif  // AP_NOTIFY_SERIALLED_ENABLED

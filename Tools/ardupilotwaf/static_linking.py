@@ -1,6 +1,5 @@
+#!/usr/bin/env python
 # encoding: utf-8
-
-# flake8: noqa
 
 """
 WAF Tool to force programs to be statically linked

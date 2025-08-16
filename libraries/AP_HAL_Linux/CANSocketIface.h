@@ -58,8 +58,8 @@ class CANIface: public AP_HAL::CANIface {
 public:
     CANIface(int index)
       : _self_index(index)
-      , _max_frames_in_socket_tx_queue(2)
       , _frames_in_socket_tx_queue(0)
+      , _max_frames_in_socket_tx_queue(2)
     { }
 
     ~CANIface() { }
@@ -109,11 +109,21 @@ public:
                 uint64_t blocking_deadline) override;
     
     // setup event handle for waiting on events
-    bool set_event_handle(AP_HAL::BinarySemaphore *handle) override;
+    bool set_event_handle(AP_HAL::EventHandle* handle) override;
 
     // fetch stats text and return the size of the same,
     // results available via @SYS/can0_stats.txt or @SYS/can1_stats.txt 
     void get_stats(ExpandingString &str) override;
+
+    class CANSocketEventSource : public AP_HAL::EventSource {
+        friend class CANIface;
+        CANIface *_ifaces[HAL_NUM_CAN_IFACES];
+        
+    public:
+        // we just poll fd, no signaling is done
+        void signal(uint32_t evt_mask) override { return; }
+        bool wait(uint64_t duration, AP_HAL::EventHandle* evt_handle) override;
+    };
 
 private:
     void _pollWrite();
@@ -132,9 +142,9 @@ private:
 
     bool _checkHWFilters(const can_frame& frame) const;
 
-    bool _hasReadyTx();
+    bool _hasReadyTx() const;
 
-    bool _hasReadyRx();
+    bool _hasReadyRx() const;
 
     void _poll(bool read, bool write);
 
@@ -154,7 +164,8 @@ private:
     const unsigned _max_frames_in_socket_tx_queue;
     unsigned _frames_in_socket_tx_queue;
     uint32_t _tx_frame_counter;
-    AP_HAL::BinarySemaphore *sem_handle;
+    AP_HAL::EventHandle *_evt_handle;
+    static CANSocketEventSource evt_can_socket[HAL_NUM_CAN_IFACES];
 
     pollfd _pollfd;
     std::map<SocketCanError, uint64_t> _errors;
@@ -163,8 +174,15 @@ private:
     std::unordered_multiset<uint32_t> _pending_loopback_ids;
     std::vector<can_filter> _hw_filters_container;
 
-    struct bus_stats : public AP_HAL::CANIface::bus_stats_t {
+    struct {
+        uint32_t tx_requests;
+        uint32_t tx_full;
         uint32_t tx_confirmed;
+        uint32_t tx_write_fail;
+        uint32_t tx_success;
+        uint32_t tx_timedout;
+        uint32_t rx_received;
+        uint32_t rx_errors;
         uint32_t num_downs;
         uint32_t num_rx_poll_req;
         uint32_t num_tx_poll_req;
@@ -172,17 +190,6 @@ private:
         uint32_t num_poll_tx_events;
         uint32_t num_poll_rx_events;
     } stats;
-
-protected:
-    bool add_to_rx_queue(const CanRxItem &rx_item) override {
-        _rx_queue.push(rx_item);
-        return true;
-    }
-
-    int8_t get_iface_num(void) const override {
-        return _self_index;
-    }
-    HAL_Semaphore sem;
 };
 
 }

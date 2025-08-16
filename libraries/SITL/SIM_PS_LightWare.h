@@ -19,21 +19,19 @@
 
 #pragma once
 
-#include "SIM_config.h"
-
-#if AP_SIM_PS_LIGHTWARE_ENABLED
-
 #include "SIM_SerialProximitySensor.h"
+
+#include <stdio.h>
 
 namespace SITL {
 
 class PS_LightWare : public SerialProximitySensor {
 public:
 
-    using SerialProximitySensor::SerialProximitySensor;
+    PS_LightWare() { }
+
+private:
 
 };
 
 };
-
-#endif  // AP_SIM_PS_LIGHTWARE_ENABLED

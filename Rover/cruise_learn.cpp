@@ -7,7 +7,7 @@ void Rover::cruise_learn_start()
     float speed;
     if (!arming.is_armed() || !g2.attitude_control.get_forward_speed(speed)) {
         cruise_learn.learn_start_ms = 0;
-        GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "Cruise Learning NOT started");
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Cruise Learning NOT started");
         return;
     }
     // start learning
@@ -15,10 +15,8 @@ void Rover::cruise_learn_start()
     cruise_learn.throttle_filt.reset(g2.motors.get_throttle());
     cruise_learn.learn_start_ms = AP_HAL::millis();
     cruise_learn.log_count = 0;
-#if HAL_LOGGING_ENABLED
     log_write_cruise_learn();
-#endif
-    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "Cruise Learning started");
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "Cruise Learning started");
 }
 
 // update cruise learning with latest speed and throttle
@@ -31,12 +29,10 @@ void Rover::cruise_learn_update()
         cruise_learn.speed_filt.apply(speed, 0.02f);
         cruise_learn.throttle_filt.apply(g2.motors.get_throttle(), 0.02f);
         // 10Hz logging
-#if HAL_LOGGING_ENABLED
         if (cruise_learn.log_count % 5 == 0) {
             log_write_cruise_learn();
         }
         cruise_learn.log_count += 1;
-#endif
         // check how long it took to learn
         if (AP_HAL::millis() - cruise_learn.learn_start_ms >= 2000) {
             cruise_learn_complete();
@@ -55,18 +51,15 @@ void Rover::cruise_learn_complete()
         if (thr >= 10.0f && thr <= 100.0f && is_positive(speed)) {
             g.throttle_cruise.set_and_save(thr);
             g.speed_cruise.set_and_save(speed);
-            GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "Cruise Learned: Thr:%d Speed:%3.1f", (int)g.throttle_cruise, (double)g.speed_cruise);
+            gcs().send_text(MAV_SEVERITY_CRITICAL, "Cruise Learned: Thr:%d Speed:%3.1f", (int)g.throttle_cruise, (double)g.speed_cruise);
         } else {
-            GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "Cruise Learning failed");
+            gcs().send_text(MAV_SEVERITY_CRITICAL, "Cruise Learning failed");
         }
         cruise_learn.learn_start_ms = 0;
-#if HAL_LOGGING_ENABLED
         log_write_cruise_learn();
-#endif
     }
 }
 
-#if HAL_LOGGING_ENABLED
 // logging for cruise learn
 void Rover::log_write_cruise_learn() const
 {
@@ -78,10 +71,9 @@ void Rover::log_write_cruise_learn() const
 // @Field: Speed: Determined target Cruise speed in auto missions
 // @Field: Throttle: Determined base throttle percentage to be used in auto missions 
 
-    AP::logger().WriteStreaming("CRSE", "TimeUS,State,Speed,Throttle", "Qbff",
+    AP::logger().Write("CRSE", "TimeUS,State,Speed,Throttle", "Qbff",
                        AP_HAL::micros64(),
                        cruise_learn.learn_start_ms > 0,
                        cruise_learn.speed_filt.get(),
                        cruise_learn.throttle_filt.get());
 }
-#endif

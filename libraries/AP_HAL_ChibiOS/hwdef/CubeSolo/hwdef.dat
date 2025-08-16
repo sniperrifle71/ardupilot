@@ -5,12 +5,14 @@
 
 include ../fmuv3/hwdef.dat
 
-define HAL_CHIBIOS_ARCH_CUBE 1
-
 env OPTIMIZE -O2
 
 SPIDEV icm20948_ext   SPI4 DEVID1  MPU_EXT_CS   MODE3  4*MHZ  8*MHZ
 SPIDEV icm20602_ext   SPI4 DEVID3  GYRO_EXT_CS  MODE3  4*MHZ  8*MHZ
+
+# pull Solo's default parameters from /Tools/Frame_params
+# these are parameters the Solo requires for proper operation that are different from the copter defaults.
+env DEFAULT_PARAMETERS 'Tools/Frame_params/Solo_Copter-4.param'
 
 # three IMUs, but allow for different variants. First two IMUs are
 # isolated, 3rd isn't
@@ -31,8 +33,8 @@ IMU Invensensev2 SPI:icm20948 ROTATION_YAW_270
 define HAL_DEFAULT_INS_FAST_SAMPLE 1
 
 # two baros
-BARO MS5611 SPI:ms5611_ext
-BARO MS5611 SPI:ms5611
+BARO MS56XX SPI:ms5611_ext
+BARO MS56XX SPI:ms5611
 
 # two compasses. First is in the LSM303D
 COMPASS LSM303D SPI:lsm9ds0_ext_am ROTATION_YAW_270
@@ -45,15 +47,4 @@ COMPASS AK09916:probe_ICM20948 0 ROTATION_ROLL_180_YAW_90
 # also probe for external compasses
 define HAL_PROBE_EXTERNAL_I2C_COMPASSES
 
-undef AP_NOTIFY_OREOLED_ENABLED
-define AP_NOTIFY_OREOLED_ENABLED 1
-
-define HAL_IMU_TEMP_MARGIN_LOW_DEFAULT 5
-
-undef HAL_SOLO_GIMBAL_ENABLED
-define HAL_SOLO_GIMBAL_ENABLED HAL_MOUNT_ENABLED
-
-undef AP_BATTERY_SMBUS_SOLO_ENABLED
-define AP_BATTERY_SMBUS_SOLO_ENABLED AP_BATTERY_SMBUS_ENABLED
-
-AUTOBUILD_TARGETS Copter
+define HAL_OREO_LED_ENABLED 1

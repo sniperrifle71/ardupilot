@@ -29,8 +29,7 @@
 class AP_GPS_MSP : public AP_GPS_Backend
 {
 public:
-
-    using AP_GPS_Backend::AP_GPS_Backend;
+    AP_GPS_MSP(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UARTDriver *_port);
 
     bool read() override;
     void handle_msp(const MSP::msp_gps_data_message_t &pkt) override;

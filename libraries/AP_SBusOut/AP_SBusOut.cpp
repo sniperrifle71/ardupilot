@@ -37,11 +37,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
-#include "AP_SBusOut_config.h"
-
-#if AP_SBUSOUTPUT_ENABLED
-
 #include "AP_SBusOut.h"
 #include <AP_Math/AP_Math.h>
 #include <AP_SerialManager/AP_SerialManager.h>
@@ -51,9 +46,13 @@ extern const AP_HAL::HAL& hal;
 
 #define SBUS_DEBUG 0
 
-#define SBUS_BSIZE 25
+// SBUS1 constant definitions
+// pulse widths measured using FrSky Sbus/PWM converter
+#define SBUS_BSIZE    25
 #define SBUS_CHANNELS 16
-#define SBUS_MIN 875
+#define SBUS_MIN 880.0f
+#define SBUS_MAX 2156.0f
+#define SBUS_SCALE (2048.0f / (SBUS_MAX - SBUS_MIN))
 
 const AP_Param::GroupInfo AP_SBusOut::var_info[] = {
     // @Param: RATE
@@ -87,12 +86,11 @@ void AP_SBusOut::sbus_format_frame(uint16_t *channels, uint8_t num_channels, uin
     buffer[0] = 0x0f;
 
     /* construct sbus frame representing channels 1 through 16 (max) */
-    const uint8_t nchan = MIN(num_channels, SBUS_CHANNELS);
+    uint8_t nchan = MIN(num_channels, SBUS_CHANNELS);
     for (unsigned i = 0; i < nchan; ++i) {
         /*protect from out of bounds values and limit to 11 bits*/
-        const uint16_t pwmval = MAX(channels[i], SBUS_MIN);
-        const uint32_t v1 = uint32_t(pwmval - SBUS_MIN) * 1600U;
-        uint16_t value = uint16_t(v1 / 1000U) + 1;
+        uint16_t pwmval = MAX(channels[i], SBUS_MIN);
+        uint16_t value = (uint16_t)((pwmval - SBUS_MIN) * SBUS_SCALE);
         if (value > 0x07ff) {
             value = 0x07ff;
         }
@@ -189,21 +187,5 @@ void AP_SBusOut::init() {
         return;
     }
     sbus1_uart = serial_manager->find_serial(AP_SerialManager::SerialProtocol_Sbus1,0);
-
-    if (sbus1_uart == nullptr) {
-        return;
-    }
-
-    // update baud param in case user looks at it
-    serial_manager->set_and_default_baud(AP_SerialManager::SerialProtocol_Sbus1, 0, 100000);
-
-    auto &uart = *sbus1_uart;
-
-    uart.begin(100000, 16, 32);
-    uart.configure_parity(2);    // enable even parity
-    uart.set_stop_bits(2);
-    uart.set_unbuffered_writes(true);
-    uart.set_flow_control(AP_HAL::UARTDriver::FLOW_CONTROL_DISABLE);
 }
 
-#endif  // AP_SBUSOUTPUT_ENABLED

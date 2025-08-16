@@ -40,8 +40,6 @@ namespace BuzzerSynth {
 
 using namespace SITL;
 
-#ifdef WITH_SITL_TONEALARM
-
 // table of user settable parameters
 const AP_Param::GroupInfo Buzzer::var_info[] = {
 
@@ -61,6 +59,8 @@ const AP_Param::GroupInfo Buzzer::var_info[] = {
 
     AP_GROUPEND
 };
+
+#ifdef WITH_SITL_TONEALARM
 
 static sf::SoundBuffer xsoundBuffer;
 static sf::Sound xdemoSound;
@@ -102,19 +102,19 @@ void Buzzer::update(const struct sitl_input &input)
     const uint32_t now = AP_HAL::millis();
     if (on) {
         if (!was_on) {
-            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "%u: Buzzer on", now);
+            gcs().send_text(MAV_SEVERITY_WARNING, "%u: Buzzer on", now);
             on_time = now;
             was_on = true;
             xdemoSound.play();
         }
         if (now - on_time > duration_ms/2) {
-            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "%u: Buzzer on again", now);
+            gcs().send_text(MAV_SEVERITY_WARNING, "%u: Buzzer on again", now);
             on_time = now;
             xdemoSound.play();
         }
     } else {
         if (was_on) {
-            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "%u: Buzzer off", now);
+            gcs().send_text(MAV_SEVERITY_WARNING, "%u: Buzzer off", now);
             xdemoSound.stop();
             was_on = false;
         }
@@ -125,8 +125,6 @@ void Buzzer::update(const struct sitl_input &input)
 #else
 
 using namespace SITL;
-
-const AP_Param::GroupInfo Buzzer::var_info[] = { AP_GROUPEND };
 
 Buzzer::Buzzer() { };
 

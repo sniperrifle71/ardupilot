@@ -14,10 +14,6 @@
  */
 #pragma once
 
-#include "AP_Notify_config.h"
-
-#if AP_NOTIFY_NEOPIXEL_ENABLED
-
 #include "RGBLed.h"
 #include "SerialLED.h"
 #include <AP_Common/AP_Common.h>
@@ -28,5 +24,3 @@ public:
 
     uint16_t init_ports() override;
 };
-
-#endif  // AP_NOTIFY_NEOPIXEL_ENABLED

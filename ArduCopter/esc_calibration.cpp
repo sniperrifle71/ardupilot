@@ -9,7 +9,7 @@
 // check if we should enter esc calibration mode
 void Copter::esc_calibration_startup_check()
 {
-    if (motors->is_brushed_pwm_type()) {
+    if (motors->get_pwm_type() == AP_Motors::PWM_TYPE_BRUSHED) {
         // ESC cal not valid for brushed motors
         return;
     }
@@ -95,10 +95,9 @@ void Copter::esc_calibration_passthrough()
         hal.scheduler->delay(3);
 
         // pass through to motors
-        auto &srv = AP::srv();
-        srv.cork();
-        motors->set_throttle_passthrough_for_esc_calibration(channel_throttle->get_control_in() * 0.001f);
-        srv.push();
+        SRV_Channels::cork();
+        motors->set_throttle_passthrough_for_esc_calibration(channel_throttle->get_control_in() / 1000.0f);
+        SRV_Channels::push();
     }
 #endif  // FRAME_CONFIG != HELI_FRAME
 }
@@ -113,26 +112,25 @@ void Copter::esc_calibration_auto()
     esc_calibration_setup();
 
     // raise throttle to maximum
-    auto &srv = AP::srv();
-    srv.cork();
+    SRV_Channels::cork();
     motors->set_throttle_passthrough_for_esc_calibration(1.0f);
-    srv.push();
+    SRV_Channels::push();
 
     // delay for 5 seconds while outputting pulses
     uint32_t tstart = millis();
     while (millis() - tstart < 5000) {
-        srv.cork();
+        SRV_Channels::cork();
         motors->set_throttle_passthrough_for_esc_calibration(1.0f);
-        srv.push();
+        SRV_Channels::push();
         esc_calibration_notify();
         hal.scheduler->delay(3);
     }
 
     // block until we restart
     while(1) {
-        srv.cork();
+        SRV_Channels::cork();
         motors->set_throttle_passthrough_for_esc_calibration(0.0f);
-        srv.push();
+        SRV_Channels::push();
         esc_calibration_notify();
         hal.scheduler->delay(3);
     }
@@ -155,7 +153,7 @@ void Copter::esc_calibration_setup()
     // clear esc flag for next time
     g.esc_calibrate.set_and_save(ESCCAL_NONE);
 
-    if (motors->is_normal_pwm_type()) {
+    if (motors->get_pwm_type() >= AP_Motors::PWM_TYPE_ONESHOT) {
         // run at full speed for oneshot ESCs (actually done on push)
         motors->set_update_rate(g.rc_speed);
     } else {

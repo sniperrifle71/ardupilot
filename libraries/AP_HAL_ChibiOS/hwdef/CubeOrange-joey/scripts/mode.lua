@@ -10,7 +10,7 @@ local MODE_LAND = 9
 local counter = 0
 
 function update()
-  local pos = ahrs:get_location()
+  local pos = ahrs:get_position()
 
   if (vehicle:get_mode() == MODE_AUTO or vehicle:get_mode() == MODE_LOITER) then
     setfence(true)

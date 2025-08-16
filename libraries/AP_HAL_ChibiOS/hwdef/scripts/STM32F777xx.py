@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 '''
 these tables are generated from the STM32 datasheet for the STM32F777x
 '''
@@ -21,8 +19,8 @@ pincount = {
     'G': 16,
     'H': 16,
     'I': 16,
-    'J': 16,
-    'K': 8
+    'J': 0,
+    'K': 0
 }
 
 
@@ -43,8 +41,7 @@ mcu = {
     'CPU_FLAGS' : '-mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard',
 
     'DEFINES' : {
-        'HAL_HAVE_HARDWARE_DOUBLE' : '1',
-        'STM32F7' : '1',
+        'HAL_HAVE_HARDWARE_DOUBLE' : '1'
     }
 }
 

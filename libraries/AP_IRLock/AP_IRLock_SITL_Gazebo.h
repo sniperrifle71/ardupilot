@@ -6,14 +6,11 @@
  */
 #pragma once
 
-#include "AP_IRLock_config.h"
+#include <AP_HAL/utility/Socket.h>
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include "IRLock.h"
 
-#if AP_IRLOCK_SITL_GAZEBO_ENABLED
-
-#include <AP_HAL/utility/Socket_native.h>
-#include "AP_IRLock.h"
-
-class AP_IRLock_SITL_Gazebo : public AP_IRLock
+class AP_IRLock_SITL_Gazebo : public IRLock
 {
 public:
     AP_IRLock_SITL_Gazebo();
@@ -27,7 +24,6 @@ public:
 private:
 
     uint32_t _last_timestamp;
-    SocketAPM_native sock;
+    SocketAPM sock;
 };
-
-#endif  // AP_IRLOCK_SITL_GAZEBO_ENABLED
+#endif // CONFIG_HAL_BOARD

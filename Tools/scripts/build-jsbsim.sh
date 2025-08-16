@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 set -x
@@ -13,7 +13,7 @@ else
     echo "$JSBBINARY does not exist, building it in your home folder:"
     cd ~ 
     rm -rf jsbsim
-    git clone https://github.com/JSBSim-Team/jsbsim.git
+    git clone git://github.com/JSBSim-Team/jsbsim.git
     cd jsbsim
     mkdir build
     cd build

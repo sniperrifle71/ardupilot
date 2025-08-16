@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 echo "---------- $0 start ----------"
 
 set -e
@@ -14,14 +14,7 @@ fi
 
 apt-get update
 
-RELEASE_CODENAME=$(lsb_release -c -s)
-
-PACKAGES="ubuntu-desktop"
-if [ ${RELEASE_CODENAME} == 'jammy' ]; then
-    PACKAGES="$PACKAGES dbus-x11"
-fi
-
-apt-get install -y $PACKAGES
+apt-get install -y ubuntu-desktop
 
 GDB_CONF="/etc/gdm3/custom.conf"
 perl -pe 's/#  AutomaticLoginEnable = true/AutomaticLoginEnable = true/'  -i "$GDB_CONF"
@@ -43,11 +36,6 @@ sudo -u "$VAGRANT_USER" dbus-launch gsettings set org.gnome.desktop.session idle
 # don't show the initial setup crap:
 sudo -u "$VAGRANT_USER" mkdir -p /home/"$VAGRANT_USER"/.config
 echo "yes" | sudo -u "$VAGRANT_USER" dd of=/home/"$VAGRANT_USER"/.config/gnome-initial-setup-done
-
-# sssd is missing config:
-if [ ${RELEASE_CODENAME} == 'jammy' ]; then
-    systemctl disable sssd
-fi
 
 # start the graphical environment right now:
 systemctl isolate graphical.target

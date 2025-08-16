@@ -1,9 +1,12 @@
-#include "AP_Compass_LSM9DS1.h"
 
-#if AP_COMPASS_LSM9DS1_ENABLED
+#include <assert.h>
+#include <utility>
 
 #include <AP_Math/AP_Math.h>
 #include <AP_HAL/AP_HAL.h>
+
+#include "AP_Compass_LSM9DS1.h"
+
 
 #define LSM9DS1M_OFFSET_X_REG_L_M   0x05
 #define LSM9DS1M_OFFSET_X_REG_H_M   0x06
@@ -47,6 +50,11 @@
 #define LSM9DS1M_INT_THS_L_M        0x32
 #define LSM9DS1M_INT_THS_H_M        0x33
 
+struct PACKED sample_regs {
+    uint8_t status;
+    int16_t val[3];
+};
+
 extern const AP_HAL::HAL &hal;
 
 AP_Compass_LSM9DS1::AP_Compass_LSM9DS1(AP_HAL::OwnPtr<AP_HAL::Device> dev,
@@ -62,7 +70,7 @@ AP_Compass_Backend *AP_Compass_LSM9DS1::probe(AP_HAL::OwnPtr<AP_HAL::Device> dev
     if (!dev) {
         return nullptr;
     }
-    AP_Compass_LSM9DS1 *sensor = NEW_NOTHROW AP_Compass_LSM9DS1(std::move(dev), rotation);
+    AP_Compass_LSM9DS1 *sensor = new AP_Compass_LSM9DS1(std::move(dev), rotation);
     if (!sensor || !sensor->init()) {
         delete sensor;
         return nullptr;
@@ -76,23 +84,23 @@ bool AP_Compass_LSM9DS1::init()
     AP_HAL::Semaphore *bus_sem = _dev->get_semaphore();
 
     if (!bus_sem) {
-        DEV_PRINTF("LSM9DS1: Unable to get bus semaphore\n");
+        hal.console->printf("LSM9DS1: Unable to get bus semaphore\n");
         return false;
     }
     bus_sem->take_blocking();
 
     if (!_check_id()) {
-        DEV_PRINTF("LSM9DS1: Could not check id\n");
+        hal.console->printf("LSM9DS1: Could not check id\n");
         goto errout;
     }
 
     if (!_configure()) {
-        DEV_PRINTF("LSM9DS1: Could not check id\n");
+        hal.console->printf("LSM9DS1: Could not check id\n");
         goto errout;
     }
 
     if (!_set_scale()) {
-        DEV_PRINTF("LSM9DS1: Could not set scale\n");
+        hal.console->printf("LSM9DS1: Could not set scale\n");
         goto errout;
     }
 
@@ -119,14 +127,15 @@ errout:
 
 void AP_Compass_LSM9DS1::_dump_registers()
 {
-    DEV_PRINTF("LSMDS1 registers\n");
+    hal.console->printf("LSMDS1 registers\n");
     for (uint8_t reg = LSM9DS1M_OFFSET_X_REG_L_M; reg <= LSM9DS1M_INT_THS_H_M; reg++) {
-        DEV_PRINTF("%02x:%02x ", (unsigned)reg, (unsigned)_register_read(reg));
+        uint8_t v = _register_read(reg);
+        hal.console->printf("%02x:%02x ", (unsigned)reg, (unsigned)v);
         if ((reg - (LSM9DS1M_OFFSET_X_REG_L_M-1)) % 16 == 0) {
-            DEV_PRINTF("\n");
+            hal.console->printf("\n");
         }
     }
-    DEV_PRINTF("\n");
+    hal.console->printf("\n");
 }
 
 void AP_Compass_LSM9DS1::_update(void)
@@ -165,7 +174,7 @@ bool AP_Compass_LSM9DS1::_check_id(void)
 
     uint8_t value = _register_read(LSM9DS1M_WHO_AM_I);
     if (value != WHO_AM_I_MAG) {
-        DEV_PRINTF("LSM9DS1: unexpected WHOAMI 0x%x\n", (unsigned)value);
+        hal.console->printf("LSM9DS1: unexpected WHOAMI 0x%x\n", (unsigned)value);
         return false;
     }
 
@@ -226,5 +235,3 @@ void AP_Compass_LSM9DS1::_register_modify(uint8_t reg, uint8_t clearbits, uint8_
     val |= setbits;
     _register_write(reg, val);
 }
-
-#endif

@@ -19,8 +19,6 @@
 #include <AP_HAL/I2CDevice.h>
 #include "RGBLed.h"
 
-#if AP_NOTIFY_PCA9685_ENABLED
-
 class PCA9685LED_I2C : public RGBLed
 {
 public:
@@ -37,5 +35,3 @@ private:
     } rgb;
     bool _need_update;
 };
-
-#endif  // AP_NOTIFY_PCA9685_ENABLED

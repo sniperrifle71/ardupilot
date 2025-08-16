@@ -61,9 +61,9 @@ void AP_RangeFinder_MSP::update(void)
     //data in 500ms, dump it
     if (AP_HAL::millis() - state.last_reading_ms > AP_RANGEFINDER_MSP_TIMEOUT_MS) {
         set_status(RangeFinder::Status::NoData);
-        state.distance_m = 0.0f;
+        state.distance_cm = 0;
     } else {
-        state.distance_m = distance_cm * 0.01f;
+        state.distance_cm = distance_cm;
         update_status();
     }
 }

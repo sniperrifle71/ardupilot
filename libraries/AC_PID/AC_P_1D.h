@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file	AC_P_1D.h
-/// @brief	Position-based P controller with optional limits on output and its first derivative.
+/// @brief	Generic P controller, with EEPROM-backed storage of constants.
 
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
@@ -11,31 +11,34 @@
 class AC_P_1D {
 public:
 
-    /// Constructor for 1D P controller with initial gain.
-    AC_P_1D(float initial_p);
+    // constructor
+    AC_P_1D(float initial_p, float dt);
 
     CLASS_NO_COPY(AC_P_1D);
 
-    // Computes the P controller output given a target and measurement.
-    // Applies position error clamping based on configured limits.
-    // Optionally constrains output slope using the sqrt_controller.
-    float update_all(float &target, float measurement) WARN_IF_UNUSED;
+    // set time step in seconds
+    void set_dt(float dt) { _dt = dt; }
 
-    // Sets limits on output, output slope (D1), and output acceleration (D2).
-    // For position controllers: output = velocity, D1 = acceleration, D2 = jerk.
+    // update_all - set target and measured inputs to P controller and calculate outputs
+    // target and measurement are filtered
+    // if measurement is further than error_min or error_max (see set_limits method)
+    //   the target is moved closer to the measurement and limit_min or limit_max will be set true
+    float update_all(float &target, float measurement, bool &limit_min, bool &limit_max) WARN_IF_UNUSED;
+
+    // set_limits - sets the maximum error to limit output and first and second derivative of output
     void set_limits(float output_min, float output_max, float D_Out_max = 0.0f, float D2_Out_max = 0.0f);
 
-    // Reduces error limits to user-specified bounds, respecting previously computed limits.
-    // Intended to be called after `set_limits()`.
+    // set_error_limits - reduce maximum position error to error_max
+    // to be called after setting limits
     void set_error_limits(float error_min, float error_max);
 
-    // Returns the current minimum error clamp, in controller units.
+    // get_error_min - return minimum position error
     float get_error_min() const { return _error_min; }
 
-    // Returns the current maximum error clamp, in controller units.
+    // get_error_max - return maximum position error
     float get_error_max() const { return _error_max; }
 
-    // Saves controller configuration from EEPROM. (not used)
+    // save gain to eeprom
     void save_gains() { _kp.save(); }
 
     // accessors
@@ -44,7 +47,7 @@ public:
     float get_error() const { return _error; }
 
     // set accessors
-    void set_kP(float v) { _kp.set(v); }
+    void kP(float v) { _kp.set(v); }
 
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
@@ -55,10 +58,9 @@ private:
     AP_Float _kp;
 
     // internal variables
+    float _dt;          // time step in seconds
     float _error;       // time step in seconds
     float _error_min; // error limit in negative direction
     float _error_max; // error limit in positive direction
     float _D1_max;      // maximum first derivative of output
-
-    const float default_kp;
 };

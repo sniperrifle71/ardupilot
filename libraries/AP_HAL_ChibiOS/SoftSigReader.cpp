@@ -15,7 +15,6 @@
  * Code by Andrew Tridgell and Siddharth Bharat Purohit
  */
 
-#include <hal.h>
 #include "SoftSigReader.h"
 #include "hwdef/common/stm32_util.h"
 

@@ -17,30 +17,16 @@
  */
 
 #include "ExpandingString.h"
-#include <AP_HAL/AP_HAL.h>
-
-#ifndef HAL_BOOTLOADER_BUILD
 
 extern const AP_HAL::HAL& hal;
 
 #define EXPAND_INCREMENT 512
-
-ExpandingString::ExpandingString(char* s, uint32_t total_len) : buf(0)
-{
-    set_buffer(s, total_len, 0);
-    memset(buf, 0, buflen);
-}
-
 
 /*
   expand the string buffer
  */
 bool ExpandingString::expand(uint32_t min_extra_space_needed)
 {
-    if (external_buffer) {
-        // we can't expand an external buffer
-        return false;
-    }
     // expand a reasonable amount
     uint32_t newsize = (5*buflen/4) + EXPAND_INCREMENT;
     if (newsize - used < min_extra_space_needed) {
@@ -48,7 +34,7 @@ bool ExpandingString::expand(uint32_t min_extra_space_needed)
     }
     
     // add one to ensure we are always null terminated
-    void *newbuf = mem_realloc(buf, used, newsize+1);
+    void *newbuf = hal.util->std_realloc(buf, newsize+1);
 
     if (newbuf == nullptr) {
         allocation_failed = true;
@@ -57,6 +43,7 @@ bool ExpandingString::expand(uint32_t min_extra_space_needed)
 
     buflen = newsize;
     buf = (char *)newbuf;
+    memset(&buf[used], 0, newsize-used);
 
     return true;
 }
@@ -115,24 +102,5 @@ bool ExpandingString::append(const char *s, uint32_t len)
 
 ExpandingString::~ExpandingString()
 {
-    if (!external_buffer) {
-        free(buf);
-    }
+    free(buf);
 }
-
-
-void ExpandingString::set_buffer(char *s, uint32_t total_len, uint32_t used_len)
-{
-    if (buf != nullptr) {
-        // we need to free previously used buffer
-        free(buf);
-    }
-
-    buf = s;
-    buflen = total_len;
-    used = used_len;
-    allocation_failed = false;
-    external_buffer = true;
-}
-
-#endif // HAL_BOOTLOADER_BUILD

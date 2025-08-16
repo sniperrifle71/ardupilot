@@ -16,4 +16,3 @@
 #include "I2CDevice.h"
 #include "Flash.h"
 #include "DSP.h"
-#include "WSPIDevice.h"

@@ -57,12 +57,6 @@ class LR_MsgHandler_REPH : public LR_MsgHandler_EKF
     void process_message(uint8_t *msg) override;
 };
 
-class LR_MsgHandler_RSLL : public LR_MsgHandler_EKF
-{
-    using LR_MsgHandler_EKF::LR_MsgHandler_EKF;
-    void process_message(uint8_t *msg) override;
-};
-
 class LR_MsgHandler_REVH : public LR_MsgHandler_EKF
 {
     using LR_MsgHandler_EKF::LR_MsgHandler_EKF;
@@ -251,10 +245,4 @@ public:
 
 private:
     bool set_parameter(const char *name, const float value);
-};
-
-class LR_MsgHandler_RTER : public LR_MsgHandler_EKF
-{
-    using LR_MsgHandler_EKF::LR_MsgHandler_EKF;
-    void process_message(uint8_t *msg) override;
 };

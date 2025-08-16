@@ -15,9 +15,10 @@
 #pragma once
 
 #include <AP_HAL/AP_HAL.h>
+#include <AP_SerialManager/AP_SerialManager.h>
 
 #ifndef HAL_HOTT_TELEM_ENABLED
-#define HAL_HOTT_TELEM_ENABLED HAL_PROGRAM_SIZE_LIMIT_KB > 2048
+#define HAL_HOTT_TELEM_ENABLED !HAL_MINIMIZE_FEATURES
 #endif
 
 #if HAL_HOTT_TELEM_ENABLED
@@ -26,7 +27,8 @@ public:
     AP_Hott_Telem();
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_Hott_Telem);
+    AP_Hott_Telem(const AP_Hott_Telem &other) = delete;
+    AP_Hott_Telem &operator=(const AP_Hott_Telem&) = delete;
 
     static AP_Hott_Telem *get_singleton(void) {
         return singleton;

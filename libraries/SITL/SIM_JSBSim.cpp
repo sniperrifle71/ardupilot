@@ -16,10 +16,6 @@
   simulator connector for JSBSim
 */
 
-#include "SIM_config.h"
-
-#if AP_SIM_JSBSIM_ENABLED
-
 #include "SIM_JSBSim.h"
 
 #include <arpa/inet.h>
@@ -66,6 +62,7 @@ JSBSim::JSBSim(const char *frame_str) :
     }
     control_port = 5505 + instance*10;
     fdm_port = 5504 + instance*10;
+    num_motors = 2;
 
     printf("JSBSim backend started: control_port=%u fdm_port=%u\n",
            control_port, fdm_port);
@@ -431,18 +428,15 @@ void JSBSim::recv_fdm(const struct sitl_input &input)
     accel_body = Vector3f(fdm.A_X_pilot, fdm.A_Y_pilot, fdm.A_Z_pilot) * FEET_TO_METERS;
 
     double p, q, r;
-    SIM::convert_body_frame(degrees(fdm.phi), degrees(fdm.theta),
+    SITL::convert_body_frame(degrees(fdm.phi), degrees(fdm.theta),
                              degrees(fdm.phidot), degrees(fdm.thetadot), degrees(fdm.psidot),
                              &p, &q, &r);
     gyro = Vector3f(p, q, r);
 
     velocity_ef = Vector3f(fdm.v_north, fdm.v_east, fdm.v_down) * FEET_TO_METERS;
-    location = {
-        int32_t(RAD_TO_DEG_DOUBLE * fdm.latitude * 1.0e7),
-        int32_t(RAD_TO_DEG_DOUBLE * fdm.longitude * 1.0e7),
-        int32_t(fdm.agl*100 + home.alt),
-        Location::AltFrame::ABSOLUTE
-    };
+    location.lat = degrees(fdm.latitude) * 1.0e7;
+    location.lng = degrees(fdm.longitude) * 1.0e7;
+    location.alt = fdm.agl*100 + home.alt;
     dcm.from_euler(fdm.phi, fdm.theta, fdm.psi);
     airspeed = fdm.vcas * KNOTS_TO_METERS_PER_SECOND;
     airspeed_pitot = airspeed;
@@ -488,5 +482,3 @@ void JSBSim::update(const struct sitl_input &input)
 }
 
 } // namespace SITL
-
-#endif  // AP_SIM_JSBSIM_ENABLED

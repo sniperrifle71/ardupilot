@@ -1,9 +1,5 @@
 #pragma once
 
-#include "AP_RangeFinder_config.h"
-
-#if AP_RANGEFINDER_MAVLINK_ENABLED
-
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Backend.h"
 
@@ -14,7 +10,6 @@ class AP_RangeFinder_MAVLink : public AP_RangeFinder_Backend
 {
 
 public:
-
     // constructor
     using AP_RangeFinder_Backend::AP_RangeFinder_Backend;
 
@@ -28,8 +23,8 @@ public:
     // Get update from mavlink
     void handle_msg(const mavlink_message_t &msg) override;
 
-    float max_distance() const override;
-    float min_distance() const override;
+    int16_t max_distance_cm() const override;
+    int16_t min_distance_cm() const override;
 
 protected:
 
@@ -40,10 +35,9 @@ protected:
 private:
 
     // stored data from packet:
-    float distance;
-    float _max_distance;
-    float _min_distance;
-    int8_t signal_quality;
+    uint16_t distance_cm;
+    uint16_t _max_distance_cm;
+    uint16_t _min_distance_cm;
 
     // start a reading
     static bool start_reading(void);
@@ -51,5 +45,3 @@ private:
 
     MAV_DISTANCE_SENSOR sensor_type = MAV_DISTANCE_SENSOR_UNKNOWN;
 };
-
-#endif

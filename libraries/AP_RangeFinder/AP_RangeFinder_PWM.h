@@ -14,10 +14,6 @@
  */
 #pragma once
 
-#include "AP_RangeFinder_config.h"
-
-#if AP_RANGEFINDER_PWM_ENABLED
-
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Backend.h"
 
@@ -40,7 +36,7 @@ public:
 
 protected:
 
-    bool get_reading(float &reading_m);
+    bool get_reading(uint16_t &reading_cm);
 
     MAV_DISTANCE_SENSOR _get_mav_distance_sensor_type() const override {
         return MAV_DISTANCE_SENSOR_UNKNOWN;
@@ -62,5 +58,3 @@ private:
     bool was_out_of_range = -1; // this odd initialisation ensures we transition to new state
 
 };
-
-#endif  // AP_RANGEFINDER_PWM_ENABLED

@@ -26,7 +26,6 @@
 #include "lstring.h"
 #include "ltable.h"
 #include "ltm.h"
-#include "lauxlib.h"
 
 // lua code does lots of casting, these warnings are not helpful
 #pragma GCC diagnostic ignored "-Wcast-align"
@@ -45,13 +44,9 @@
 ** a macro to help the creation of a unique random seed when a state is
 ** created; the seed is used to randomize hashes.
 */
-#if defined(ARDUPILOT_BUILD)
-#define luai_makeseed() lua_random32()
-#else
 #if !defined(luai_makeseed)
 #include <time.h>
 #define luai_makeseed()		cast(unsigned int, time(NULL))
-#endif
 #endif
 
 

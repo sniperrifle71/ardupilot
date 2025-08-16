@@ -12,12 +12,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "AP_Baro_LPS2XH.h"
-
-#if AP_BARO_LPS2XH_ENABLED
-
 #include <utility>
 #include <stdio.h>
+
+#include "AP_Baro_LPS2XH.h"
 
 #include <AP_InertialSensor/AP_InertialSensor_Invensense_registers.h>
 
@@ -69,7 +67,7 @@ AP_Baro_Backend *AP_Baro_LPS2XH::probe(AP_Baro &baro,
         return nullptr;
     }
 
-    AP_Baro_LPS2XH *sensor = NEW_NOTHROW AP_Baro_LPS2XH(baro, std::move(dev));
+    AP_Baro_LPS2XH *sensor = new AP_Baro_LPS2XH(baro, std::move(dev));
     if (!sensor || !sensor->_init()) {
         delete sensor;
         return nullptr;
@@ -86,7 +84,7 @@ AP_Baro_Backend *AP_Baro_LPS2XH::probe_InvensenseIMU(AP_Baro &baro,
         return nullptr;
     }
 
-    AP_Baro_LPS2XH *sensor = NEW_NOTHROW AP_Baro_LPS2XH(baro, std::move(dev));
+    AP_Baro_LPS2XH *sensor = new AP_Baro_LPS2XH(baro, std::move(dev));
     if (sensor) {
         if (!sensor->_imu_i2c_init(imu_address)) {
             delete sensor;
@@ -119,7 +117,7 @@ bool AP_Baro_LPS2XH::_imu_i2c_init(uint8_t imu_address)
 
     uint8_t whoami=0;
     _dev->read_registers(MPUREG_WHOAMI, &whoami, 1);
-    DEV_PRINTF("IMU: whoami 0x%02x old_address=%02x\n", whoami, old_address);
+    hal.console->printf("IMU: whoami 0x%02x old_address=%02x\n", whoami, old_address);
 
     _dev->write_register(MPUREG_FIFO_EN, 0x00);
     _dev->write_register(MPUREG_PWR_MGMT_1, BIT_PWR_MGMT_1_CLK_XGYRO);
@@ -146,9 +144,7 @@ bool AP_Baro_LPS2XH::_init()
     _dev->set_speed(AP_HAL::Device::SPEED_HIGH);
 
     // top bit is for read on SPI
-    if (_dev->bus_type() == AP_HAL::Device::BUS_TYPE_SPI) {
-        _dev->set_read_flag(0x80);
-    }
+    _dev->set_read_flag(0x80);
 
     if (!_check_whoami()) {
         _dev->get_semaphore()->give();
@@ -198,7 +194,7 @@ bool AP_Baro_LPS2XH::_check_whoami(void)
     if (!_dev->read_registers(REG_ID, &whoami, 1)) {
 	   return false;
     }
-    DEV_PRINTF("LPS2XH whoami 0x%02x\n", whoami);
+    hal.console->printf("LPS2XH whoami 0x%02x\n", whoami);
 
     switch(whoami){
     case LPS22HB_WHOAMI:
@@ -212,7 +208,7 @@ bool AP_Baro_LPS2XH::_check_whoami(void)
     return false;
 }
 
-//  accumulate a new sensor reading
+//  acumulate a new sensor reading
 void AP_Baro_LPS2XH::_timer(void)
 {
     uint8_t status;
@@ -278,5 +274,3 @@ void AP_Baro_LPS2XH::_update_pressure(void)
     _pressure_sum += Pressure_mb;
     _pressure_count++;
 }
-
-#endif  // AP_BARO_LPS2XH_ENABLED

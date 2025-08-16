@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 
 '''
 Create a replay log using master branch.
@@ -97,7 +95,7 @@ class CheckReplayBranch(object):
         subprocess.check_call(["./waf", "replay"])
 
     def run_replay_on_log(self, logfile_path):
-        subprocess.check_call(["./build/sitl/tool/Replay", logfile_path])
+        subprocess.check_call(["./build/sitl/tools/Replay", logfile_path])
 
     def get_logs(self):
         return sorted(glob.glob("logs/*.BIN"))

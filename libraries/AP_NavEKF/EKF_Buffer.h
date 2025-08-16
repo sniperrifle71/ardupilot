@@ -28,7 +28,7 @@ public:
      * Zeros old data so it cannot not be used again
      * Returns false if no data can be found that is less than 100msec old
     */
-    bool recall(void *element, const uint32_t sample_time_ms);
+    bool recall(void *element, uint32_t sample_time);
 
     /*
      * Writes data and timestamp to a Ring buffer and advances indices that
@@ -42,17 +42,9 @@ public:
 private:
     const uint8_t elsize;
     void *buffer;
+    uint8_t _size, _head, _tail, _new_data;
 
-    // size of allocated buffer in elsize units
-    uint8_t size;
-
-    // index of the oldest element in the buffer
-    uint8_t oldest;
-
-    // total number of elements in the buffer
-    uint8_t count;
-
-    uint32_t time_ms(uint8_t idx) const;
+    uint32_t &time_ms(uint8_t idx);
     void *get_offset(uint8_t idx) const;
 };
 
@@ -71,15 +63,15 @@ public:
         ekf_ring_buffer(sizeof(element_type))
         {}
 
-    bool init(uint8_t _size) {
-        return ekf_ring_buffer::init(_size);
+    bool init(uint8_t size) {
+        return ekf_ring_buffer::init(size);
     }
 
     bool recall(element_type &element,uint32_t sample_time) {
         return ekf_ring_buffer::recall(&element, sample_time);
     }
 
-    void push(const element_type &element) {
+    void push(element_type element) {
         return ekf_ring_buffer::push(&element);
     }
 

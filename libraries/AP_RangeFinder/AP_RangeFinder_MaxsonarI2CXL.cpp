@@ -23,8 +23,6 @@
  */
 #include "AP_RangeFinder_MaxsonarI2CXL.h"
 
-#if AP_RANGEFINDER_MAXSONARI2CXL_ENABLED
-
 #include <utility>
 
 #include <AP_HAL/AP_HAL.h>
@@ -34,9 +32,9 @@ extern const AP_HAL::HAL& hal;
 
 AP_RangeFinder_MaxsonarI2CXL::AP_RangeFinder_MaxsonarI2CXL(RangeFinder::RangeFinder_State &_state,
                                                            AP_RangeFinder_Params &_params,
-                                                           AP_HAL::I2CDevice *dev)
+                                                           AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev)
     : AP_RangeFinder_Backend(_state, _params)
-    , _dev(dev)
+    , _dev(std::move(dev))
 {
 }
 
@@ -47,14 +45,14 @@ AP_RangeFinder_MaxsonarI2CXL::AP_RangeFinder_MaxsonarI2CXL(RangeFinder::RangeFin
 */
 AP_RangeFinder_Backend *AP_RangeFinder_MaxsonarI2CXL::detect(RangeFinder::RangeFinder_State &_state,
 																AP_RangeFinder_Params &_params,
-                                                             AP_HAL::I2CDevice *dev)
+                                                             AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev)
 {
     if (!dev) {
         return nullptr;
     }
 
     AP_RangeFinder_MaxsonarI2CXL *sensor
-        = NEW_NOTHROW AP_RangeFinder_MaxsonarI2CXL(_state, _params, dev);
+        = new AP_RangeFinder_MaxsonarI2CXL(_state, _params, std::move(dev));
     if (!sensor) {
         return nullptr;
     }
@@ -116,10 +114,10 @@ bool AP_RangeFinder_MaxsonarI2CXL::get_reading(uint16_t &reading_cm)
     if (ret) {
         // combine results into distance
         reading_cm = be16toh(val);
-    }
 
-    // trigger a new reading
-    start_reading();
+        // trigger a new reading
+        start_reading();
+    }
 
     return ret;
 }
@@ -145,7 +143,7 @@ void AP_RangeFinder_MaxsonarI2CXL::update(void)
 {
     WITH_SEMAPHORE(_sem);
     if (new_distance) {
-        state.distance_m = distance * 0.01f;
+        state.distance_cm = distance;
         new_distance = false;
         update_status();
     } else if (AP_HAL::millis() - state.last_reading_ms > 300) {
@@ -153,5 +151,3 @@ void AP_RangeFinder_MaxsonarI2CXL::update(void)
         set_status(RangeFinder::Status::NoData);
     }
 }
-
-#endif  // AP_RANGEFINDER_MAXSONARI2CXL_ENABLED

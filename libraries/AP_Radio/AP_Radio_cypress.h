@@ -14,9 +14,7 @@
  */
 #pragma once
 
-#include "AP_Radio_config.h"
-
-#if AP_RADIO_CYRF6936_ENABLED
+#if HAL_RCINPUT_WITH_AP_RADIO
 
 /*
   AP_Radio implementation for Cypress 2.4GHz radio.
@@ -133,7 +131,7 @@ private:
 
     static void irq_handler_thd(void* arg);
     static void trigger_irq_radio_event(void);
-    static void trigger_timeout_event(virtual_timer_t* vt, void *arg);
+    static void trigger_timeout_event(void *arg);
 
     static const uint8_t max_channels = 16;
 
@@ -281,4 +279,4 @@ private:
     void setup_timeout(uint32_t timeout_ms);
 };
 
-#endif  // AP_RADIO_CYRPRESS_ENABLED
+#endif

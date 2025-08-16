@@ -24,11 +24,19 @@
 
 #include "AP_Filesystem.h"
 
-#if AP_FILESYSTEM_FATFS_ENABLED || AP_FILESYSTEM_POSIX_ENABLED || AP_FILESYSTEM_ESP32_ENABLED || AP_FILESYSTEM_ROMFS_ENABLED
+#if HAVE_FILESYSTEM_SUPPORT
 
 #include "posix_compat.h"
 #include <stdarg.h>
 #include <AP_Math/AP_Math.h>
+
+struct apfs_file {
+    int fd;
+    bool error;
+    bool eof;
+    int16_t unget;
+    char *tmpfile_name;
+};
 
 #define CHECK_STREAM(stream, ret) while (stream == NULL || stream->fd < 0) { errno = EBADF; return ret; }
 
@@ -63,22 +71,18 @@ static int posix_fopen_modes_to_open(const char *mode)
     }
     if (modecmp(mode,"a+") || modecmp(mode, "a+b" ) || modecmp(mode, "ab+" )) {
         flag = O_RDWR | O_CREAT | O_APPEND;
-        return flag;
+        return -1;
     }
     return -1;
 }
 
 APFS_FILE *apfs_fopen(const char *pathname, const char *mode)
 {
-    APFS_FILE *f = NEW_NOTHROW APFS_FILE;
+    APFS_FILE *f = new APFS_FILE;
     if (!f) {
         return nullptr;
     }
     f->fd = AP::FS().open(pathname, posix_fopen_modes_to_open(mode));
-    if (f->fd == -1) {
-        delete f;
-        return nullptr;
-    }
     f->unget = -1;
     return f;
 }
@@ -142,14 +146,15 @@ int apfs_fputs(const char *s, APFS_FILE *stream)
     return ret;
 }
 
-#undef fgets
 char *apfs_fgets(char *s, int size, APFS_FILE *stream)
 {
     CHECK_STREAM(stream, NULL);
-    auto &fs = AP::FS();
-    if (!fs.fgets(s, size, stream->fd)) {
+    ssize_t ret = AP::FS().read(stream->fd, s, size-1);
+    if (ret < 0) {
+        stream->error = true;
         return NULL;
     }
+    s[ret] = 0;
     return s;
 }
 
@@ -162,8 +167,7 @@ int apfs_fseek(APFS_FILE *stream, long offset, int whence)
 {
     CHECK_STREAM(stream, EOF);
     stream->eof = false;
-    AP::FS().lseek(stream->fd, offset, whence);
-    return 0;
+    return AP::FS().lseek(stream->fd, offset, whence);
 }
 
 int apfs_ferror(APFS_FILE *stream)
@@ -261,4 +265,4 @@ int apfs_remove(const char *pathname)
     return AP::FS().unlink(pathname);
 }
 
-#endif // AP_FILESYSTEM_POSIX_ENABLED
+#endif // HAVE_FILESYSTEM_SUPPORT

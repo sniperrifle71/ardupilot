@@ -20,7 +20,7 @@ void Rover::crash_check()
     }
 
     // Crashed if pitch/roll > crash_angle
-    if ((g2.crash_angle != 0) && ((fabsf(ahrs.get_pitch_rad()) > radians(g2.crash_angle)) || (fabsf(ahrs.get_roll_rad()) > radians(g2.crash_angle)))) {
+    if ((g2.crash_angle != 0) && ((fabsf(ahrs.pitch) > radians(g2.crash_angle)) || (fabsf(ahrs.roll) > radians(g2.crash_angle)))) {
         crashed = true;
     }
 
@@ -45,16 +45,16 @@ void Rover::crash_check()
     }
 
     if (crashed) {
-        LOGGER_WRITE_ERROR(LogErrorSubsystem::CRASH_CHECK,
-                           LogErrorCode::CRASH_CHECK_CRASH);
+        AP::logger().Write_Error(LogErrorSubsystem::CRASH_CHECK,
+                                 LogErrorCode::CRASH_CHECK_CRASH);
 
         if (is_balancebot()) {
             // send message to gcs
-            GCS_SEND_TEXT(MAV_SEVERITY_EMERGENCY, "Crash: Disarming");
+            gcs().send_text(MAV_SEVERITY_EMERGENCY, "Crash: Disarming");
             arming.disarm(AP_Arming::Method::CRASH);
         } else {
             // send message to gcs
-            GCS_SEND_TEXT(MAV_SEVERITY_EMERGENCY, "Crash: Going to HOLD");
+            gcs().send_text(MAV_SEVERITY_EMERGENCY, "Crash: Going to HOLD");
             // change mode to hold and disarm
             set_mode(mode_hold, ModeReason::CRASH_FAILSAFE);
             if (g.fs_crash_check == FS_CRASH_HOLD_AND_DISARM) {

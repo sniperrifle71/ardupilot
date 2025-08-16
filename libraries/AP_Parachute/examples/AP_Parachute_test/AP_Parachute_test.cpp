@@ -23,7 +23,7 @@ static AP_Relay relay;
 
 #if HAL_PARACHUTE_ENABLED
 // Parachute
-static AP_Parachute parachute;
+static AP_Parachute parachute{relay};
 #endif
 
 void setup()

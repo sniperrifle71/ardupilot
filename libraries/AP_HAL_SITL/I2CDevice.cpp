@@ -17,7 +17,7 @@
 #include "I2CDevice.h"
 
 #include <AP_HAL/AP_HAL.h>
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && !defined(HAL_BUILD_AP_PERIPH)
 
 #include <SITL/SITL.h>
 
@@ -60,14 +60,14 @@ uint8_t I2CBus::i2c_buscount;
 
 int I2CBus::_ioctl(uint8_t ioctl_number, void *data)
 {
-    SITL::SIM *sitl = AP::sitl();
+    SITL::SITL *sitl = AP::sitl();
     return sitl->i2c_ioctl(ioctl_number, data);
 }
 
 AP_HAL::Device::PeriodicHandle I2CBus::register_periodic_callback(uint32_t period_usec, AP_HAL::Device::PeriodicCb cb)
 {
     // mostly swiped from ChibiOS:
-    I2CBus::callback_info *callback = NEW_NOTHROW I2CBus::callback_info;
+    I2CBus::callback_info *callback = new I2CBus::callback_info;
     if (callback == nullptr) {
         return nullptr;
     }
@@ -106,17 +106,18 @@ I2CDeviceManager::I2CDeviceManager()
     }
 }
 
-AP_HAL::I2CDevice *
-I2CDeviceManager::get_device_ptr(uint8_t bus,
-                                 uint8_t address,
-                                 uint32_t bus_clock,
-                                 bool use_smbus,
-                                 uint32_t timeout_ms)
+AP_HAL::OwnPtr<AP_HAL::I2CDevice>
+I2CDeviceManager::get_device(uint8_t bus,
+                             uint8_t address,
+                             uint32_t bus_clock,
+                             bool use_smbus,
+                             uint32_t timeout_ms)
 {
     if (bus >= ARRAY_SIZE(buses)) {
-        return nullptr;
+        return AP_HAL::OwnPtr<AP_HAL::I2CDevice>(nullptr);
     }
-    return NEW_NOTHROW I2CDevice(buses[bus], address);
+    auto dev = AP_HAL::OwnPtr<AP_HAL::I2CDevice>(new I2CDevice(buses[bus], address));
+    return dev;
 }
 
 void I2CDeviceManager::_timer_tick()
@@ -134,7 +135,7 @@ I2CDevice::I2CDevice(I2CBus &bus, uint8_t address)
     : _bus(bus)
     , _address(address)
 {
-    // ::fprintf(stderr, "bus.bus=%u address=0x%02x\n", bus.bus, address);
+    ::fprintf(stderr, "bus.bus=%u address=0x%02x\n", bus.bus, address);
     set_device_bus(bus.bus);
     set_device_address(address);
 }
@@ -216,4 +217,4 @@ bool I2CDevice::adjust_periodic_callback(Device::PeriodicHandle h, uint32_t peri
     return false;
 }
 
-#endif //#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#endif //#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && !defined(HAL_BUILD_AP_PERIPH)

@@ -37,10 +37,6 @@ Protocol:
  - in the case that we don't have ESC telemetry, consider probing ESCs periodically with an "OK"-request while disarmed
 */
 
-#include <AP_HAL/AP_HAL.h>
-
-extern const AP_HAL::HAL& hal;
-
 #include <AP_Math/AP_Math.h>
 
 #include "SIM_FETtecOneWireESC.h"
@@ -64,7 +60,7 @@ const AP_Param::GroupInfo FETtecOneWireESC::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("ENA", 1, FETtecOneWireESC, _enabled, 0),
 
-    // @Param: POW
+    // @Param: PWOF
     // @DisplayName: Power off FETtec ESC mask
     // @Description: Allows you to turn power off to the simulated ESCs.  Bits correspond to the ESC ID, *NOT* their servo channel.
     // @User: Advanced
@@ -231,7 +227,7 @@ void FETtecOneWireESC::running_handle_config_message(FETtecOneWireESC::ESC &esc)
     case ConfigMessageType::NOT_OK:
         break;
     case ConfigMessageType::BL_START_FW:       // BL only
-        hal.console->printf("received unexpected BL_START_FW message\n");
+        ::fprintf(stderr, "received unexpected BL_START_FW message\n");
         AP_HAL::panic("received unexpected BL_START_FW message");
         return;
     case ConfigMessageType::BL_PAGES_TO_FLASH: // BL only
@@ -384,7 +380,7 @@ void FETtecOneWireESC::consume_bytes(uint8_t count)
 
 void FETtecOneWireESC::update_input()
 {
-    const ssize_t n = read_from_autopilot((char*)&u.buffer[buflen], ARRAY_SIZE(u.buffer) - buflen);
+    const ssize_t n = read_from_autopilot((char*)&u.buffer[buflen], ARRAY_SIZE(u.buffer) - buflen - 1);
     if (n < 0) {
         // TODO: do better here
         if (errno != EAGAIN && errno != EWOULDBLOCK && errno != 0) {

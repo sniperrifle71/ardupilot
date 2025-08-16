@@ -18,8 +18,6 @@
 
 #include "SIM_Morse.h"
 
-#if AP_SIM_MORSE_ENABLED
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -29,6 +27,7 @@
 #include <sys/types.h>
 
 #include <AP_HAL/AP_HAL.h>
+#include <AP_Logger/AP_Logger.h>
 #include "pthread.h"
 #include <AP_HAL/utility/replace.h>
 
@@ -260,7 +259,7 @@ bool Morse::parse_sensors(const char *json)
 bool Morse::connect_sockets(void)
 {
     if (!sensors_sock) {
-        sensors_sock = NEW_NOTHROW SocketAPM_native(false);
+        sensors_sock = new SocketAPM(false);
         if (!sensors_sock) {
             AP_HAL::panic("Out of memory for sensors socket");
         }
@@ -279,7 +278,7 @@ bool Morse::connect_sockets(void)
         printf("Sensors connected\n");
     }
     if (!control_sock) {
-        control_sock = NEW_NOTHROW SocketAPM_native(false);
+        control_sock = new SocketAPM(false);
         if (!control_sock) {
             AP_HAL::panic("Out of memory for control socket");
         }
@@ -566,9 +565,7 @@ void Morse::update(const struct sitl_input &input)
 
     report_FPS();
 
-#if HAL_GCS_ENABLED
     send_report();
-#endif
 }
 
 
@@ -593,7 +590,6 @@ void Morse::report_FPS(void)
 
 
 
-#if HAL_GCS_ENABLED
 /*
   send a report to the vehicle control code over MAVLink
 */
@@ -604,7 +600,7 @@ void Morse::send_report(void)
     if (now < 10000) {
         // don't send lidar reports until 10s after startup. This
         // avoids a windows threading issue with non-blocking sockets
-        // and the initial wait on SERIAL0
+        // and the initial wait on uartA
         return;
     }
 #endif
@@ -658,11 +654,14 @@ void Morse::send_report(void)
         }
 
         mavlink_message_t msg;
-        uint16_t len = mavlink_msg_obstacle_distance_encode_status(
+        mavlink_status_t *chan0_status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        uint8_t saved_seq = chan0_status->current_tx_seq;
+        chan0_status->current_tx_seq = mavlink.seq;
+        uint16_t len = mavlink_msg_obstacle_distance_encode(
                 mavlink_system.sysid,
                 13,
-                &mavlink.status,
                 &msg, &packet);
+        chan0_status->current_tx_seq = saved_seq;
 
         uint8_t msgbuf[len];
         len = mavlink_msg_to_send_buffer(msgbuf, &msg);
@@ -672,6 +671,3 @@ void Morse::send_report(void)
     }
 
 }
-#endif  // HAL_GCS_ENABLED
-
-#endif  // AP_SIM_MORSE_ENABLED

@@ -14,10 +14,6 @@
 */
 #pragma once
 
-#include "AP_Frsky_config.h"
-
-#if AP_FRSKY_TELEM_ENABLED
-
 #include "AP_Frsky_Backend.h"
 #include "AP_Frsky_SPort.h"
 
@@ -31,7 +27,8 @@ public:
     ~AP_Frsky_Telem();
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_Frsky_Telem);
+    AP_Frsky_Telem(const AP_Frsky_Telem &other) = delete;
+    AP_Frsky_Telem &operator=(const AP_Frsky_Telem&) = delete;
 
     // init - perform required initialisation
     bool init(bool use_external_data=false);
@@ -73,5 +70,3 @@ private:
 namespace AP {
     AP_Frsky_Telem *frsky_telem();
 };
-
-#endif  // AP_FRSKY_TELEM_ENABLED

@@ -13,16 +13,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AC_Avoidance_config.h"
-
-#if AP_OAPATHPLANNER_BENDYRULER_ENABLED
-
 #include "AP_OABendyRuler.h"
 #include <AC_Avoidance/AP_OADatabase.h>
 #include <AC_Fence/AC_Fence.h>
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Logger/AP_Logger.h>
-#include <AP_Vehicle/AP_Vehicle_Type.h>
 
 // parameter defaults
 const float OA_BENDYRULER_LOOKAHEAD_DEFAULT = 15.0f;
@@ -37,7 +32,7 @@ const float OA_BENDYRULER_LOOKAHEAD_STEP2_MIN = 2.0f;   // step2 checks at least
 const float OA_BENDYRULER_LOOKAHEAD_PAST_DEST = 2.0f;   // lookahead length will be at least this many meters past the destination
 const float OA_BENDYRULER_LOW_SPEED_SQUARED = (0.2f * 0.2f);    // when ground course is below this speed squared, vehicle's heading will be used
 
-#define VERTICAL_ENABLED APM_BUILD_COPTER_OR_HELI
+#define VERTICAL_ENABLED APM_BUILD_TYPE(APM_BUILD_ArduCopter)
 
 const AP_Param::GroupInfo AP_OABendyRuler::var_info[] = {
 
@@ -82,8 +77,8 @@ AP_OABendyRuler::AP_OABendyRuler()
     _bearing_prev = FLT_MAX;
 }
 
-// run background task to find best path
-// returns true and updates origin_new and destination_new if a best path has been found.  returns false if OA is not required
+// run background task to find best path and update avoidance_results
+// returns true and updates origin_new and destination_new if a best path has been found
 // bendy_type is set to the type of BendyRuler used
 bool AP_OABendyRuler::update(const Location& current_loc, const Location& destination, const Vector2f &ground_speed_vec, Location &origin_new, Location &destination_new, OABendyType &bendy_type, bool proximity_only)
 {
@@ -98,7 +93,7 @@ bool AP_OABendyRuler::update(const Location& current_loc, const Location& destin
     const float distance_to_dest = current_loc.get_distance(destination);
 
     // make sure user has set a meaningful value for _lookahead
-    _lookahead.set(MAX(_lookahead,1.0f));
+    _lookahead = MAX(_lookahead,1.0f);
 
     // lookahead distance is adjusted dynamically based on avoidance results
     _current_lookahead = constrain_float(_current_lookahead, _lookahead * 0.5f, _lookahead);
@@ -114,7 +109,7 @@ bool AP_OABendyRuler::update(const Location& current_loc, const Location& destin
     float ground_course_deg;
     if (ground_speed_vec.length_squared() < OA_BENDYRULER_LOW_SPEED_SQUARED) {
         // with zero ground speed use vehicle's heading
-        ground_course_deg = AP::ahrs().get_yaw_deg();
+        ground_course_deg = AP::ahrs().yaw_sensor * 0.01f;
     } else {
         ground_course_deg = degrees(ground_speed_vec.angle());
     }
@@ -322,7 +317,7 @@ bool AP_OABendyRuler::search_vertical_path(const Location &current_loc, const Lo
                         destination_new = current_loc;
                         destination_new.offset_bearing_and_pitch(bearing_to_dest, pitch_delta, distance_to_dest);
                         _current_lookahead = MIN(_lookahead, _current_lookahead * 1.1f);
-
+                    
                         Write_OABendyRuler((uint8_t)OABendyType::OA_BENDY_VERTICAL, active, bearing_to_dest, pitch_delta, false, margin, destination, destination_new);
                         return active;
                     }
@@ -461,7 +456,6 @@ float AP_OABendyRuler::calc_avoidance_margin(const Location &start, const Locati
 // on success returns true and updates margin
 bool AP_OABendyRuler::calc_margin_from_circular_fence(const Location &start, const Location &end, float &margin) const
 {
-#if AP_FENCE_ENABLED
     // exit immediately if polygon fence is not enabled
     const AC_Fence *fence = AC_Fence::get_singleton();
     if (fence == nullptr) {
@@ -482,16 +476,12 @@ bool AP_OABendyRuler::calc_margin_from_circular_fence(const Location &start, con
     // margin is fence radius minus the longer of start or end distance
     margin = fence_radius_plus_margin - sqrtf(MAX(start_dist_sq, end_dist_sq));
     return true;
-#else
-    return false;
-#endif // AP_FENCE_ENABLED
 }
 
 // calculate minimum distance between a path and the altitude fence
 // on success returns true and updates margin
 bool AP_OABendyRuler::calc_margin_from_alt_fence(const Location &start, const Location &end, float &margin) const
-{
-#if AP_FENCE_ENABLED
+{   
     // exit immediately if polygon fence is not enabled
     const AC_Fence *fence = AC_Fence::get_singleton();
     if (fence == nullptr) {
@@ -518,16 +508,12 @@ bool AP_OABendyRuler::calc_margin_from_alt_fence(const Location &start, const Lo
     margin = MIN(margin_start,margin_end);
 
     return true;
-#else
-    return false;
-#endif // AP_FENCE_ENABLED
 }
 
 // calculate minimum distance between a path and all inclusion and exclusion polygons
 // on success returns true and updates margin
 bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_polygons(const Location &start, const Location &end, float &margin) const
 {
-#if AP_FENCE_ENABLED
     const AC_Fence *fence = AC_Fence::get_singleton();
     if (fence == nullptr) {
         return false;
@@ -547,8 +533,7 @@ bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_polygons(const Lo
 
     // convert start and end to offsets from EKF origin
     Vector2f start_NE, end_NE;
-    if (!start.get_vector_xy_from_origin_NE_cm(start_NE) ||
-        !end.get_vector_xy_from_origin_NE_cm(end_NE)) {
+    if (!start.get_vector_xy_from_origin_NE(start_NE) || !end.get_vector_xy_from_origin_NE(end_NE)) {
         return false;
     }
 
@@ -589,16 +574,12 @@ bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_polygons(const Lo
     }
 
     return margin_updated;
-#else
-    return false;
-#endif // AP_FENCE_ENABLED
 }
 
 // calculate minimum distance between a path and all inclusion and exclusion circles
 // on success returns true and updates margin
 bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_circles(const Location &start, const Location &end, float &margin) const
 {
-#if AP_FENCE_ENABLED
     // exit immediately if fence is not enabled
     const AC_Fence *fence = AC_Fence::get_singleton();
     if (fence == nullptr) {
@@ -619,8 +600,7 @@ bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_circles(const Loc
 
     // convert start and end to offsets from EKF origin
     Vector2f start_NE, end_NE;
-    if (!start.get_vector_xy_from_origin_NE_cm(start_NE) ||
-        !end.get_vector_xy_from_origin_NE_cm(end_NE)) {
+    if (!start.get_vector_xy_from_origin_NE(start_NE) || !end.get_vector_xy_from_origin_NE(end_NE)) {
         return false;
     }
 
@@ -670,9 +650,6 @@ bool AP_OABendyRuler::calc_margin_from_inclusion_and_exclusion_circles(const Loc
     }
 
     return margin_updated;
-#else
-    return false;
-#endif // AP_FENCE_ENABLED
 }
 
 // calculate minimum distance between a path and proximity sensor obstacles
@@ -687,8 +664,7 @@ bool AP_OABendyRuler::calc_margin_from_object_database(const Location &start, co
 
     // convert start and end to offsets (in cm) from EKF origin
     Vector3f start_NEU,end_NEU;
-    if (!start.get_vector_from_origin_NEU_cm(start_NEU) ||
-        !end.get_vector_from_origin_NEU_cm(end_NEU)) {
+    if (!start.get_vector_from_origin_NEU(start_NEU) || !end.get_vector_from_origin_NEU(end_NEU)) {
         return false;
     }
     if (start_NEU == end_NEU) {
@@ -715,5 +691,3 @@ bool AP_OABendyRuler::calc_margin_from_object_database(const Location &start, co
 
     return false;
 }
-
-#endif  // AP_OAPATHPLANNER_BENDYRULER_ENABLED

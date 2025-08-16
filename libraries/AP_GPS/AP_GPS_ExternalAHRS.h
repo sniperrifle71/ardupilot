@@ -19,18 +19,17 @@
 #pragma once
 
 #include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL_Boards.h>
+#include <AP_HAL/AP_HAL.h>
 
 #include "AP_GPS.h"
 #include "GPS_Backend.h"
 
-#if AP_EXTERNAL_AHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
 
 class AP_GPS_ExternalAHRS : public AP_GPS_Backend
 {
 public:
-
-    using AP_GPS_Backend::AP_GPS_Backend;
+    AP_GPS_ExternalAHRS(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UARTDriver *_port);
 
     bool read() override;
     void handle_external(const AP_ExternalAHRS::gps_data_message_t &pkt) override;
@@ -43,5 +42,5 @@ private:
     bool new_data;
 };
 
-#endif // AP_EXTERNAL_AHRS_ENABLED
+#endif // HAL_EXTERNAL_AHRS_ENABLED
 

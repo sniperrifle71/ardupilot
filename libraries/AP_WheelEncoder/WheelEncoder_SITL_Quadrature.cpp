@@ -22,10 +22,14 @@
 
 extern const AP_HAL::HAL& hal;
 
-void AP_WheelEncoder_SITL_Quadrature::update(void)
+AP_WheelEncoder_SITL_Qaudrature::AP_WheelEncoder_SITL_Qaudrature(AP_WheelEncoder &frontend, uint8_t instance, AP_WheelEncoder::WheelEncoder_State &state) :
+    AP_WheelEncoder_Backend(frontend, instance, state),
+    _sitl(AP::sitl())
 {
-    const auto *_sitl = AP::sitl();
+}
 
+void AP_WheelEncoder_SITL_Qaudrature::update(void)
+{
     // earth frame velocity of vehicle in vector form
     const Vector2f ef_velocity(_sitl->state.speedN, _sitl->state.speedE);
     // store current heading
@@ -38,7 +42,7 @@ void AP_WheelEncoder_SITL_Quadrature::update(void)
 
     // calculate dt
     const uint32_t time_now = AP_HAL::millis();
-    const double dt = (time_now - _state.last_reading_ms)*0.001f;
+    const double dt = (time_now - _state.last_reading_ms)/1000.0f;
     if (is_zero(dt)) { // sanity check
         return;
     }
@@ -55,7 +59,7 @@ void AP_WheelEncoder_SITL_Quadrature::update(void)
     // distance from center of wheel axis to each wheel
     const double half_wheelbase = ( fabsf(_frontend.get_pos_offset(0).y) + fabsf(_frontend.get_pos_offset(1).y) )/2.0f;
     if (is_zero(half_wheelbase)) {
-        GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "WheelEncoder: wheel offset not set!");
+        gcs().send_text(MAV_SEVERITY_WARNING, "WheelEncoder: wheel offset not set!");
     }
 
     if (_state.instance == 0) { 
@@ -69,7 +73,7 @@ void AP_WheelEncoder_SITL_Quadrature::update(void)
 
     const double radius = _frontend.get_wheel_radius(_state.instance);
     if (is_zero(radius)) { // avoid divide by zero
-        GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "WheelEncoder: wheel radius not set!");
+        gcs().send_text(MAV_SEVERITY_WARNING, "WheelEncoder: wheel radius not set!");
         return; 
     }
 

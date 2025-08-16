@@ -13,12 +13,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AP_Beacon_Nooploop.h"
-
-#if AP_BEACON_NOOPLOOP_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 #include <GCS_MAVLink/GCS.h>
+#include "AP_Beacon_Nooploop.h"
 #include <ctype.h>
 #include <stdio.h>
 
@@ -45,6 +42,15 @@
 
 extern const AP_HAL::HAL& hal;
 
+AP_Beacon_Nooploop::AP_Beacon_Nooploop(AP_Beacon &frontend, AP_SerialManager &serial_manager) :
+    AP_Beacon_Backend(frontend)
+{
+    _uart = serial_manager.find_serial(AP_SerialManager::SerialProtocol_Beacon, 0);
+    if (_uart != nullptr) {
+        _uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_Beacon, 0));
+    }
+}
+
 // return true if sensor is basically healthy (we are receiving data)
 bool AP_Beacon_Nooploop::healthy()
 {
@@ -56,14 +62,14 @@ bool AP_Beacon_Nooploop::healthy()
 void AP_Beacon_Nooploop::update(void)
 {
     // return immediately if not serial port
-    if (uart == nullptr) {
+    if (_uart == nullptr) {
         return;
     }
 
     // check uart for any incoming messages
-    uint32_t nbytes = MIN(uart->available(), 1024U);
+    uint32_t nbytes = MIN(_uart->available(), 1024U);
     while (nbytes-- > 0) {
-        int16_t b = uart->read();
+        int16_t b = _uart->read();
         if (b >= 0 ) {
             MsgType type = parse_byte((uint8_t)b);
             if (type == MsgType::NODE_FRAME2) {
@@ -83,13 +89,13 @@ void AP_Beacon_Nooploop::update(void)
 void AP_Beacon_Nooploop::request_setting()
 {
     //send setting_frame0 to tag, tag will fill anchor position and ack
-    uart->write((uint8_t)0x54);
-    uart->write((uint8_t)0);
-    uart->write((uint8_t)1);
+    _uart->write((uint8_t)0x54);
+    _uart->write((uint8_t)0);
+    _uart->write((uint8_t)1);
     for (uint8_t i = 0; i < 124; i++) {
-        uart->write((uint8_t)0); //manual states filled with any char, but in fact only 0 works
+        _uart->write((uint8_t)0); //manual states filled with any char, but in fact only 0 works
     }
-    uart->write((uint8_t)0x55);
+    _uart->write((uint8_t)0x55);
 }
 
 // process one byte received on serial port
@@ -251,5 +257,3 @@ void AP_Beacon_Nooploop::parse_setting_frame0()
     }
     _anchor_pos_avail = true;
 }
-
-#endif  // AP_BEACON_NOOPLOOP_ENABLED

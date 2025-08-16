@@ -18,11 +18,7 @@
 
 #pragma once
 
-#include "SIM_config.h"
-
-#if AP_SIM_MORSE_ENABLED
-
-#include <AP_HAL/utility/Socket_native.h>
+#include <AP_HAL/utility/Socket.h>
 #include "SIM_Aircraft.h"
 
 namespace SITL {
@@ -39,7 +35,7 @@ public:
 
     /* static object creator */
     static Aircraft *create(const char *frame_str) {
-        return NEW_NOTHROW Morse(frame_str);
+        return new Morse(frame_str);
     }
 
 private:
@@ -47,7 +43,7 @@ private:
     // loopback to convert inbound Morse lidar data into inbound mavlink msgs
     const char *mavlink_loopback_address = "127.0.0.1";
     const uint16_t mavlink_loopback_port = 5762;
-    SocketAPM_native mav_socket { false };
+    SocketAPM mav_socket { false };
     struct {
         // socket to telem2 on aircraft
         bool connected;
@@ -87,8 +83,8 @@ private:
     uint8_t sensor_buffer[50000];
     uint32_t sensor_buffer_len;
 
-    SocketAPM_native *sensors_sock;
-    SocketAPM_native *control_sock;
+    SocketAPM *sensors_sock;
+    SocketAPM *control_sock;
 
     uint32_t no_data_counter;
     uint32_t connect_counter;
@@ -158,6 +154,3 @@ private:
 
 
 } // namespace SITL
-
-
-#endif  // AP_SIM_MORSE_ENABLED

@@ -73,8 +73,8 @@ void BalanceBot::update(const struct sitl_input &input)
     const float gear_ratio = 50.0f;
 
     // balance bot uses skid steering
-    float motor1 = input.servos[0] ? normalise_servo_input(input.servos[0]) : 0;
-    float motor2 = input.servos[2] ? normalise_servo_input(input.servos[2]) : 0;
+    const float motor1 = 2*((input.servos[0]-1000)/1000.0f - 0.5f);
+    const float motor2 = 2*((input.servos[2]-1000)/1000.0f - 0.5f);
     const float steering = motor1 - motor2;
     const float throttle = 0.5 * (motor1 + motor2);
 
@@ -85,7 +85,7 @@ void BalanceBot::update(const struct sitl_input &input)
     const float delta_time = frame_time_us * 1.0e-6f;
 
     // yaw rate in degrees/s
-    float yaw_rate = calc_yaw_rate(steering);
+    const float yaw_rate = calc_yaw_rate(steering);
 
     // obtain roll, pitch, yaw from dcm
     float r, p, y;
@@ -93,18 +93,7 @@ void BalanceBot::update(const struct sitl_input &input)
     float theta = p; //radians
 
     float ang_vel = gyro.y; //radians/s
-    if (!hal.util->get_soft_armed()) {
-        // simulated fingers uprighting the vehicle
-        const float p_gain = 200;
-        const float pitch_response = -sin(p) * p_gain * delta_time;
-        ang_vel += pitch_response;
-
-        // simulated fingers rotating the vehicle
-        const float y_gain = 100000;
-        const float yaw_response = -sin(wrap_180(y)) * y_gain * delta_time;
-        yaw_rate += yaw_response;
-    }
-
+    
     // t1,t2,t3 are terms in the equation to find vehicle frame x acceleration
     const float t1 = ((2.0f*gear_ratio*k_t*v/(R*r_w)) - (2.0f*gear_ratio*k_t*k_e*velocity_vf_x/(R*r_w*r_w)) - (m_p*l*ang_vel*ang_vel*sin(theta))) * (i_p + m_p*l*l);
     const float t2 = -m_p*l*cos(theta)*((2.0f*gear_ratio*k_t*k_e*velocity_vf_x/(R*r_w)) - (2.0f*gear_ratio*k_t*v/(R)) + (m_p*GRAVITY_MSS*l*sin(theta)));
@@ -143,20 +132,15 @@ void BalanceBot::update(const struct sitl_input &input)
     // we are on the ground, so our vertical accel is zero
     accel_earth.z = 0;
 
-    if (!hal.util->get_soft_armed() &&
-        p < radians(2)) {
+    if (!hal.util->get_soft_armed()) {
         // reset to vertical when not armed for faster testing
         accel_earth.zero();
         velocity_ef.zero();
+        dcm.identity();
+        gyro.zero();
         velocity_vf_x =0;
-        gyro[1] = 0; // no pitch rate
-        if (y < radians(2)) {
-            // no rates at all:
-            dcm.identity();
-            gyro.zero();
-        }
     }
-
+    
     // work out acceleration as seen by the accelerometers. It sees the kinematic
     // acceleration (ie. real movement), plus gravity
     accel_body += dcm.transposed() * (Vector3f(0, 0, -GRAVITY_MSS));

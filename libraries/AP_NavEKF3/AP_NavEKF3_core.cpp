@@ -8,9 +8,9 @@
 #include <AP_DAL/AP_DAL.h>
 
 // constructor
-NavEKF3_core::NavEKF3_core(NavEKF3 *_frontend, AP_DAL &_dal) :
-    dal(_dal),
+NavEKF3_core::NavEKF3_core(NavEKF3 *_frontend) :
     frontend(_frontend),
+    dal(AP::dal()),
     public_origin(frontend->common_EKF_origin)
 {
     firstInitTime_ms = 0;
@@ -47,11 +47,11 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
                                   ))));
 
     // GPS sensing can have large delays and should not be included if disabled
-    if (frontend->sources.usingGPS(core_index)) {
+    if (frontend->sources.usingGPS()) {
         // Wait for the configuration of all GPS units to be confirmed. Until this has occurred the GPS driver cannot provide a correct time delay
         float gps_delay_sec = 0;
         if (!dal.gps().get_lag(selected_gps, gps_delay_sec)) {
-#if HAL_GCS_ENABLED
+#ifndef HAL_NO_GCS
             const uint32_t now = dal.millis();
             if (now - lastInitFailReport_ms > 10000) {
                 lastInitFailReport_ms = now;
@@ -90,7 +90,7 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
     // set the observation buffer length to handle the minimum time of arrival between observations in combination
     // with the worst case delay from current time to ekf fusion time
     // allow for worst case 50% extension of the ekf fusion time horizon delay due to timing jitter
-    uint16_t ekf_delay_ms = maxTimeDelay_ms + (int)(ceilF((ftype)maxTimeDelay_ms * 0.5f));
+    uint16_t ekf_delay_ms = maxTimeDelay_ms + (int)(ceilF((float)maxTimeDelay_ms * 0.5f));
     obs_buffer_length = (ekf_delay_ms / frontend->sensorIntervalMin_ms) + 1;
 
     // limit to be no longer than the IMU buffer (we can't process data faster than the EKF prediction rate)
@@ -99,10 +99,8 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
     // calculate buffer size for optical flow data
     const uint8_t flow_buffer_length = MIN((ekf_delay_ms / frontend->flowIntervalMin_ms) + 1, imu_buffer_length);
 
-#if EK3_FEATURE_EXTERNAL_NAV
     // calculate buffer size for external nav data
     const uint8_t extnav_buffer_length = MIN((ekf_delay_ms / frontend->extNavIntervalMin_ms) + 1, imu_buffer_length);
-#endif // EK3_FEATURE_EXTERNAL_NAV
 
     if(!storedGPS.init(obs_buffer_length)) {
         return false;
@@ -131,18 +129,14 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
     if(frontend->sources.gps_yaw_enabled() && !storedYawAng.init(obs_buffer_length)) {
         return false;
     }
-#if AP_RANGEFINDER_ENABLED
     // Note: the use of dual range finders potentially doubles the amount of data to be stored
     if(dal.rangefinder() && !storedRange.init(MIN(2*obs_buffer_length , imu_buffer_length))) {
         return false;
     }
-#endif
     // Note: range beacon data is read one beacon at a time and can arrive at a high rate
-#if EK3_FEATURE_BEACON_FUSION
-    if(dal.beacon() && !rngBcn.storedRange.init(imu_buffer_length+1)) {
+    if(dal.beacon() && !storedRangeBeacon.init(imu_buffer_length+1)) {
         return false;
     }
-#endif
 #if EK3_FEATURE_EXTERNAL_NAV
     if (frontend->sources.ext_nav_enabled() && !storedExtNav.init(extnav_buffer_length)) {
         return false;
@@ -165,7 +159,15 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
         return false;
     }
 #endif
- 
+
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "EKF3 IMU%u buffs IMU=%u OBS=%u OF=%u EN:%u dt=%.4f",
+                    (unsigned)imu_index,
+                    (unsigned)imu_buffer_length,
+                    (unsigned)obs_buffer_length,
+                    (unsigned)flow_buffer_length,
+                    (unsigned)extnav_buffer_length,
+                    (double)dtEkfAvg);
+
     if ((yawEstimator == nullptr) && (frontend->_gsfRunMask & (1U<<core_index))) {
         // check if there is enough memory to create the EKF-GSF object
         if (dal.available_memory() < sizeof(EKFGSF_yaw) + 1024) {
@@ -174,7 +176,7 @@ bool NavEKF3_core::setup_core(uint8_t _imu_index, uint8_t _core_index)
         }
 
         // try to instantiate
-        yawEstimator = NEW_NOTHROW EKFGSF_yaw();
+        yawEstimator = new EKFGSF_yaw();
         if (yawEstimator == nullptr) {
             GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "EKF3 IMU%uGSF: allocation failed",(unsigned)imu_index);
             return false;
@@ -203,7 +205,7 @@ void NavEKF3_core::InitialiseVariables()
     prevBetaDragStep_ms = imuSampleTime_ms;
     lastBaroReceived_ms = imuSampleTime_ms;
     lastVelPassTime_ms = 0;
-    lastGpsPosPassTime_ms = 0;
+    lastPosPassTime_ms = 0;
     lastHgtPassTime_ms = 0;
     lastTasPassTime_ms = 0;
     lastSynthYawTime_ms = 0;
@@ -230,7 +232,6 @@ void NavEKF3_core::InitialiseVariables()
     gpsNoiseScaler = 1.0f;
     hgtTimeout = true;
     tasTimeout = true;
-    dragTimeout = true;
     badIMUdata = false;
     badIMUdata_ms = 0;
     goodIMUdata_ms = 0;
@@ -241,7 +242,6 @@ void NavEKF3_core::InitialiseVariables()
     dt = 0;
     velDotNEDfilt.zero();
     lastKnownPositionNE.zero();
-    lastKnownPositionD = 0;
     prevTnb.zero();
     memset(&P[0][0], 0, sizeof(P));
     memset(&KH[0][0], 0, sizeof(KH));
@@ -249,9 +249,7 @@ void NavEKF3_core::InitialiseVariables()
     memset(&nextP[0][0], 0, sizeof(nextP));
     flowDataValid = false;
     rangeDataToFuse  = false;
-#if EK3_FEATURE_OPTFLOW_FUSION
     Popt = 0.0f;
-#endif
     terrainState = 0.0f;
     prevPosN = stateStruct.position.x;
     prevPosE = stateStruct.position.y;
@@ -262,8 +260,6 @@ void NavEKF3_core::InitialiseVariables()
     PV_AidingModePrev = AID_NONE;
     posTimeout = true;
     velTimeout = true;
-    velAiding = false;
-    waitingForGpsChecks = false;
     memset(&faultStatus, 0, sizeof(faultStatus));
     hgtRate = 0.0f;
     onGround = true;
@@ -272,9 +268,6 @@ void NavEKF3_core::InitialiseVariables()
     prevInFlight = false;
     manoeuvring = false;
     inhibitWindStates = true;
-    windStateIsObservable = false;
-    treatWindStatesAsTruth = false;
-    lastAspdEstIsValid = false;
     windStatesAligned = false;
     inhibitDelVelBiasStates = true;
     inhibitDelAngBiasStates = true;
@@ -290,7 +283,6 @@ void NavEKF3_core::InitialiseVariables()
     tiltErrorVariance = sq(M_2PI);
     tiltAlignComplete = false;
     yawAlignComplete = false;
-    yawAlignGpsValidCount = 0;
     have_table_earth_field = false;
     stateIndexLim = 23;
     last_gps_idx = 0;
@@ -298,7 +290,7 @@ void NavEKF3_core::InitialiseVariables()
     velErrintegral.zero();
     posErrintegral.zero();
     gpsGoodToAlign = false;
-    gpsIsInUse = false;
+    gpsNotAvailable = true;
     motorsArmed = false;
     prevMotorsArmed = false;
     memset(&gpsCheckStatus, 0, sizeof(gpsCheckStatus));
@@ -307,12 +299,9 @@ void NavEKF3_core::InitialiseVariables()
     sAccFilterState1 = 0.0f;
     sAccFilterState2 = 0.0f;
     lastGpsCheckTime_ms = 0;
-    lastGpsInnovPassTime_ms = 0;
-    lastGpsInnovFailTime_ms = 0;
-    lastGpsVertAccPassTime_ms = 0;
-    lastGpsVertAccFailTime_ms = 0;
+    lastInnovPassTime_ms = 0;
+    lastInnovFailTime_ms = 0;
     gpsAccuracyGood = false;
-    gpsAccuracyGoodForAltitude = false;
     gpsloc_prev = {};
     gpsDriftNE = 0.0f;
     gpsVertVelFilt = 0.0f;
@@ -320,9 +309,7 @@ void NavEKF3_core::InitialiseVariables()
     ZERO_FARRAY(statesArray);
     memset(&vertCompFiltState, 0, sizeof(vertCompFiltState));
     posVelFusionDelayed = false;
-#if EK3_FEATURE_OPTFLOW_FUSION
     optFlowFusionDelayed = false;
-#endif
     flowFusionActive = false;
     airSpdFusionDelayed = false;
     sideSlipFusionDelayed = false;
@@ -344,11 +331,9 @@ void NavEKF3_core::InitialiseVariables()
     memset(&filterStatus, 0, sizeof(filterStatus));
     activeHgtSource = AP_NavEKF_Source::SourceZ::BARO;
     prevHgtSource = activeHgtSource;
-#if EK3_FEATURE_RANGEFINDER_MEASUREMENTS
     memset(&rngMeasIndex, 0, sizeof(rngMeasIndex));
     memset(&storedRngMeasTime_ms, 0, sizeof(storedRngMeasTime_ms));
     memset(&storedRngMeas, 0, sizeof(storedRngMeas));
-#endif
     terrainHgtStable = true;
     ekfOriginHgtVar = 0.0f;
     ekfGpsRefHgt = 0.0;
@@ -357,9 +342,44 @@ void NavEKF3_core::InitialiseVariables()
     ZERO_FARRAY(velPosObs);
 
     // range beacon fusion variables
-#if EK3_FEATURE_BEACON_FUSION
-    rngBcn.InitialiseVariables();
-#endif  // EK3_FEATURE_BEACON_FUSION
+    memset((void *)&rngBcnDataDelayed, 0, sizeof(rngBcnDataDelayed));
+    lastRngBcnPassTime_ms = 0;
+    rngBcnTestRatio = 0.0f;
+    rngBcnHealth = false;
+    varInnovRngBcn = 0.0f;
+    innovRngBcn = 0.0f;
+    memset(&lastTimeRngBcn_ms, 0, sizeof(lastTimeRngBcn_ms));
+    rngBcnDataToFuse = false;
+    beaconVehiclePosNED.zero();
+    beaconVehiclePosErr = 1.0f;
+    rngBcnLast3DmeasTime_ms = 0;
+    rngBcnGoodToAlign = false;
+    lastRngBcnChecked = 0;
+    receiverPos.zero();
+    memset(&receiverPosCov, 0, sizeof(receiverPosCov));
+    rngBcnAlignmentStarted =  false;
+    rngBcnAlignmentCompleted = false;
+    lastBeaconIndex = 0;
+    rngBcnPosSum.zero();
+    numBcnMeas = 0;
+    rngSum = 0.0f;
+    N_beacons = 0;
+    maxBcnPosD = 0.0f;
+    minBcnPosD = 0.0f;
+    bcnPosDownOffsetMax = 0.0f;
+    bcnPosOffsetMaxVar = 0.0f;
+    maxOffsetStateChangeFilt = 0.0f;
+    bcnPosDownOffsetMin = 0.0f;
+    bcnPosOffsetMinVar = 0.0f;
+    minOffsetStateChangeFilt = 0.0f;
+    rngBcnFuseDataReportIndex = 0;
+    if (dal.beacon()) {
+        if (rngBcnFusionReport == nullptr) {
+            rngBcnFusionReport = new rngBcnFusionReport_t[dal.beacon()->count()];
+        }
+    }
+    bcnPosOffsetNED.zero();
+    bcnOriginEstInit = false;
 
 #if EK3_FEATURE_BODY_ODOM
     // body frame displacement fusion
@@ -398,13 +418,9 @@ void NavEKF3_core::InitialiseVariables()
     storedGPS.reset();
     storedBaro.reset();
     storedTAS.reset();
-#if EK3_FEATURE_RANGEFINDER_MEASUREMENTS
     storedRange.reset();
-#endif
     storedOutput.reset();
-#if EK3_FEATURE_BEACON_FUSION
-    rngBcn.storedRange.reset();
-#endif
+    storedRangeBeacon.reset();
 #if EK3_FEATURE_BODY_ODOM
     storedBodyOdm.reset();
     storedWheelOdm.reset();
@@ -429,6 +445,7 @@ void NavEKF3_core::InitialiseVariables()
     effectiveMagCal = effective_magCal();
 }
 
+
 // Use a function call rather than a constructor to initialise variables because it enables the filter to be re-started in flight if necessary.
 void NavEKF3_core::InitialiseVariablesMag()
 {
@@ -438,6 +455,8 @@ void NavEKF3_core::InitialiseVariablesMag()
     magTimeout = false;
     allMagSensorsFailed = false;
     finalInflightMagInit = false;
+    mag_state.q0 = 1;
+    mag_state.DCM.identity();
     inhibitMagStates = true;
     magSelectIndex = dal.compass().get_first_usable();
     lastMagOffsetsValid = false;
@@ -446,7 +465,6 @@ void NavEKF3_core::InitialiseVariablesMag()
     magYawResetRequest = false;
     posDownAtLastMagReset = stateStruct.position.z;
     yawInnovAtLastMagReset = 0.0f;
-    stateStruct.quat.initialise();
     quatAtLastMagReset = stateStruct.quat;
     magFieldLearned = false;
     storedMag.reset();
@@ -456,7 +474,6 @@ void NavEKF3_core::InitialiseVariablesMag()
 #endif
     needMagBodyVarReset = false;
     needEarthBodyVarReset = false;
-    magFusionSel = MagFuseSel::NOT_FUSING;
 }
 
 /*
@@ -482,7 +499,7 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
     }
 
     // read all the sensors required to start the EKF the states
-    readIMUData(false);  // don't allow prediction
+    readIMUData();
     readMagData();
     readGpsData();
     readGpsYawData();
@@ -544,8 +561,8 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
     ResetHeight();
 
     // initialise sources
-    posxy_source_last = frontend->sources.getPosXYSource(core_index);
-    yaw_source_last = frontend->sources.getYawSource(core_index);
+    posxy_source_last = frontend->sources.getPosXYSource();
+    yaw_source_last = frontend->sources.getYawSource();
 
     // define Earth rotation vector in the NED navigation frame
     calcEarthRateNED(earthRateNED, dal.get_home().lat);
@@ -613,10 +630,8 @@ void NavEKF3_core::CovarianceInit()
     P[23][23]  = P[22][22];
 
 
-#if EK3_FEATURE_OPTFLOW_FUSION
     // optical flow ground height covariance
     Popt = 0.25f;
-#endif
 
 }
 
@@ -626,6 +641,9 @@ void NavEKF3_core::CovarianceInit()
 // Update Filter States - this should be called whenever new IMU data is available
 void NavEKF3_core::UpdateFilter(bool predict)
 {
+    // Set the flag to indicate to the filter that the front-end has given permission for a new state prediction cycle to be started
+    startPredictEnabled = predict;
+
     // don't run filter updates if states have not been initialised
     if (!statesInitialised) {
         return;
@@ -642,7 +660,7 @@ void NavEKF3_core::UpdateFilter(bool predict)
     controlFilterModes();
 
     // read IMU data as delta angles and velocities
-    readIMUData(predict);
+    readIMUData();
 
     // Run the EKF equations to estimate at the fusion time horizon if new IMU data is available in the buffer
     if (runUpdates) {
@@ -668,15 +686,11 @@ void NavEKF3_core::UpdateFilter(bool predict)
         // Muat be run after SelectVelPosFusion() so that fresh GPS data is available
         runYawEstimatorCorrection();
 
-#if EK3_FEATURE_BEACON_FUSION
         // Update states using range beacon data
         SelectRngBcnFusion();
-#endif
 
-#if EK3_FEATURE_OPTFLOW_FUSION
         // Update states using optical flow data
         SelectFlowFusion();
-#endif
 
 #if EK3_FEATURE_BODY_ODOM
         // Update states using body frame odometry data
@@ -772,7 +786,7 @@ void NavEKF3_core::UpdateStrapdownEquationsNED()
     // calculate a magnitude of the filtered nav acceleration (required for GPS
     // variance estimation)
     accNavMag = velDotNEDfilt.length();
-    accNavMagHoriz = velDotNEDfilt.xy().length();
+    accNavMagHoriz = norm(velDotNEDfilt.x , velDotNEDfilt.y);
 
     // if we are not aiding, then limit the horizontal magnitude of acceleration
     // to prevent large manoeuvre transients disturbing the attitude
@@ -798,12 +812,10 @@ void NavEKF3_core::UpdateStrapdownEquationsNED()
     // limit states to protect against divergence
     ConstrainStates();
 
-#if EK3_FEATURE_BEACON_FUSION
     // If main filter velocity states are valid, update the range beacon receiver position states
     if (filterStatus.flags.horiz_vel) {
-        rngBcn.receiverPos += (stateStruct.velocity + lastVelocity) * (imuDataDelayed.delVelDT*0.5f);
+        receiverPos += (stateStruct.velocity + lastVelocity) * (imuDataDelayed.delVelDT*0.5f);
     }
-#endif
 }
 
 /*
@@ -880,7 +892,7 @@ void NavEKF3_core::calcOutputStates()
     if (!accelPosOffset.is_zero()) {
         // calculate the average angular rate across the last IMU update
         // note delAngDT is prevented from being zero in readIMUData()
-        Vector3F angRate = dal.ins().get_gyro(gyro_index_active).toftype();
+        Vector3F angRate = imuDataNew.delAng * (1.0f/imuDataNew.delAngDT);
 
         // Calculate the velocity of the body frame origin relative to the IMU in body frame
         // and rotate into earth frame. Note % operator has been overloaded to perform a cross product
@@ -931,7 +943,7 @@ void NavEKF3_core::calcOutputStates()
 
         // calculate a gain that provides tight tracking of the estimator states and
         // adjust for changes in time delay to maintain consistent damping ratio of ~0.7
-        ftype timeDelay = 1e-3f * (ftype)(imuDataNew.time_ms - imuDataDelayed.time_ms);
+        ftype timeDelay = 1e-3f * (float)(imuDataNew.time_ms - imuDataDelayed.time_ms);
         timeDelay = MAX(timeDelay, dtIMUavg);
         ftype errorGain = 0.5f / timeDelay;
 
@@ -942,14 +954,6 @@ void NavEKF3_core::calcOutputStates()
         // calculate velocity and position tracking errors
         Vector3F velErr = (stateStruct.velocity - outputDataDelayed.velocity);
         Vector3F posErr = (stateStruct.position - outputDataDelayed.position);
-
-        if (badIMUdata) {
-            // When IMU accel is bad,  calculate an integral that will be used to drive the difference
-            // between the output state and internal EKF state at the delayed time horizon to zero.
-            badImuVelErrIntegral += (stateStruct.velocity.z - outputDataNew.velocity.z);
-        } else {
-            badImuVelErrIntegral = velErrintegral.z;
-        }
 
         // collect magnitude tracking error for diagnostics
         outputTrackError.x = deltaAngErr.length();
@@ -965,16 +969,8 @@ void NavEKF3_core::calcOutputStates()
         // use a PI feedback to calculate a correction that will be applied to the output state history
         posErrintegral += posErr;
         velErrintegral += velErr;
-        Vector3F posCorrection = posErr * velPosGain + posErrintegral * sq(velPosGain) * 0.1F;
-        Vector3F velCorrection;
-        velCorrection.x = velErr.x * velPosGain + velErrintegral.x * sq(velPosGain) * 0.1F;
-        velCorrection.y = velErr.y * velPosGain + velErrintegral.y * sq(velPosGain) * 0.1F;
-        if (badIMUdata) {
-            velCorrection.z = velErr.z * velPosGain + badImuVelErrIntegral * sq(velPosGain) * 0.07F;
-            velErrintegral.z = badImuVelErrIntegral;
-        } else {
-            velCorrection.z = velErr.z * velPosGain + velErrintegral.z * sq(velPosGain) * 0.1F;
-        }
+        Vector3F velCorrection = velErr * velPosGain + velErrintegral * sq(velPosGain) * 0.1f;
+        Vector3F posCorrection = posErr * velPosGain + posErrintegral * sq(velPosGain) * 0.1f;
 
         // loop through the output filter state history and apply the corrections to the velocity and position states
         // this method is too expensive to use for the attitude states due to the quaternion operations required
@@ -1002,8 +998,8 @@ void NavEKF3_core::calcOutputStates()
 
 /*
  * Calculate the predicted state covariance matrix using algebraic equations generated using SymPy
- * See derivation/generate_1.py for derivation
- * Output for change reference: derivation/generated/covariance_generated.cpp
+ * See AP_NavEKF3/derivation/main.py for derivation
+ * Output for change reference: AP_NavEKF3/derivation/generated/covariance_generated.cpp
  * Argument rotVarVecPtr is pointer to a vector defining the earth frame uncertainty variance of the quaternion states
  * used to perform a reset of the quaternion state covariances only. Set to null for normal operation.
 */
@@ -1096,26 +1092,8 @@ void NavEKF3_core::CovariancePrediction(Vector3F *rotVarVecPtr)
     lastInhibitMagStates = inhibitMagStates;
 
     if (!inhibitWindStates) {
-        const bool isDragFusionDeadReckoning = filterStatus.flags.dead_reckoning && !dragTimeout;
-        const bool newTreatWindStatesAsTruth = isDragFusionDeadReckoning || !windStateIsObservable;
-        if (newTreatWindStatesAsTruth) {
-            treatWindStatesAsTruth = true;
-            P[23][23] = P[22][22] = 0.0f;
-        } else {
-            if (treatWindStatesAsTruth) {
-                treatWindStatesAsTruth = false;
-                if (windStateIsObservable) {
-                    // allow EKF to relearn wind states rapidly
-                    P[23][23] = P[22][22] = sq(WIND_VEL_VARIANCE_MAX);
-                }
-            }
-	        ftype windVelVar  = sq(dt * constrain_ftype(frontend->_windVelProcessNoise, 0.0f, 1.0f) * (1.0f + constrain_ftype(frontend->_wndVarHgtRateScale, 0.0f, 1.0f) * fabsF(hgtRate)));
-	        if (!tasDataDelayed.allowFusion) {
-	            // Allow wind states to recover faster when using sideslip fusion with a failed airspeed sesnor
-	            windVelVar *= 10.0f;
-	        }
-	        for (uint8_t i=12; i<=13; i++) processNoiseVariance[i] = windVelVar;
-        }
+        ftype windVelVar  = sq(dt * constrain_ftype(frontend->_windVelProcessNoise, 0.0f, 1.0f) * (1.0f + constrain_ftype(frontend->_wndVarHgtRateScale, 0.0f, 1.0f) * fabsF(hgtRate)));
+        for (uint8_t i=12; i<=13; i++) processNoiseVariance[i] = windVelVar;
     }
 
     // set variables used to calculate covariance growth
@@ -1873,22 +1851,6 @@ void NavEKF3_core::ForceSymmetry()
 // if states are inactive, zero the corresponding off-diagonals
 void NavEKF3_core::ConstrainVariances()
 {
-    // Covariance constraints as of March 2025
-    // This table assumes normal operations, there are additional constraints for specific failure modes like "badIMUdata" and "inhibitDelAngBiasStates".
-    // +----------------------------------------------------------------------------------------------+
-    // | State Index  |      State Name                 |  State Units  | Variance Constraint Range   |
-    // +----------------------------------------------------------------------------------------------+
-    // |  0 .. 3      | Attitude Quaternion             | unitless      | [0.0, 1.0]                  |
-    // |  4 .. 5      | Velocity (North, East)          | m/s           | [1e-4, 1e3]                 |
-    // |  6           | Velocity (Down)                 | m/s           | dynamic                     |
-    // |  7 .. 9      | Position (North, East, Down)    | m             | [1e-4, 1e6]                 |
-    // | 10 .. 12     | Gyro Bias (X, Y, Z)             | rad           | [0.0, (0.175 * dtEkfAvg)^2] |
-    // | 13 .. 15     | Accel Bias (X, Y, Z)            | m/s^2         | dynamic                     |
-    // | 16 .. 18     | Earth Magnetic Field (X, Y, Z)  | Gauss         | [0.0, 0.01]                 |
-    // | 19 .. 21     | Body Magnetic Field (X, Y, Z)   | Gauss         | [0.0, 0.01]                 |
-    // | 22 .. 23     | Wind Velocity (North, East)     | m/s           | [0.0, 400]                  |
-    // +----------------------------------------------------------------------------------------------+
-
     for (uint8_t i=0; i<=3; i++) P[i][i] = constrain_ftype(P[i][i],0.0,1.0); // attitude error
     for (uint8_t i=4; i<=5; i++) P[i][i] = constrain_ftype(P[i][i], VEL_STATE_MIN_VARIANCE, 1.0e3); // NE velocity
 
@@ -1930,11 +1892,12 @@ void NavEKF3_core::ConstrainVariances()
         zeroRows(P,10,12);
     }
 
-    const ftype minSafeStateVar = 5E-9;
+    const ftype minStateVarTarget = 1E-11;
     if (!inhibitDelVelBiasStates) {
 
         // Find the maximum delta velocity bias state variance and request a covariance reset if any variance is below the safe minimum
-        ftype maxStateVar = 0.0F;
+        const ftype minSafeStateVar = minStateVarTarget * 0.1f;
+        ftype maxStateVar = minSafeStateVar;
         bool resetRequired = false;
         for (uint8_t stateIndex=13; stateIndex<=15; stateIndex++) {
             if (P[stateIndex][stateIndex] > maxStateVar) {
@@ -1946,30 +1909,33 @@ void NavEKF3_core::ConstrainVariances()
 
         // To ensure stability of the covariance matrix operations, the ratio of a max and min variance must
         // not exceed 100 and the minimum variance must not fall below the target minimum
-        ftype minAllowedStateVar = fmaxF(0.01f * maxStateVar, minSafeStateVar);
+        ftype minAllowedStateVar = fmaxF(0.01f * maxStateVar, minStateVarTarget);
         for (uint8_t stateIndex=13; stateIndex<=15; stateIndex++) {
             P[stateIndex][stateIndex] = constrain_ftype(P[stateIndex][stateIndex], minAllowedStateVar, sq(10.0f * dtEkfAvg));
         }
 
         // If any one axis has fallen below the safe minimum, all delta velocity covariance terms must be reset to zero
         if (resetRequired) {
+            ftype delVelBiasVar[3];
+            // store all delta velocity bias variances
+            for (uint8_t i=0; i<=2; i++) {
+                delVelBiasVar[i] = P[i+13][i+13];
+            }
             // reset all delta velocity bias covariances
             zeroCols(P,13,15);
             zeroRows(P,13,15);
-            // set all delta velocity bias variances to initial values and zero bias states
-            P[13][13] = sq(ACCEL_BIAS_LIM_SCALER * frontend->_accBiasLim * dtEkfAvg);
-            P[14][14] = P[13][13];
-            P[15][15] = P[13][13];
-            stateStruct.accel_bias.zero();
+            // restore all delta velocity bias variances
+            for (uint8_t i=0; i<=2; i++) {
+                P[i+13][i+13] = delVelBiasVar[i];
+            }
         }
 
     } else {
         zeroCols(P,13,15);
         zeroRows(P,13,15);
-        // set all delta velocity bias variances to a margin above the minimum safe value
         for (uint8_t i=0; i<=2; i++) {
-            const uint8_t stateIndex = i + 13;
-            P[stateIndex][stateIndex] = fmaxF(P[stateIndex][stateIndex], minSafeStateVar * 10.0F);
+            const uint8_t stateIndex = 1 + 13;
+            P[stateIndex][stateIndex] = fmaxF(P[stateIndex][stateIndex], minStateVarTarget);
         }
     }
 
@@ -1982,11 +1948,7 @@ void NavEKF3_core::ConstrainVariances()
     }
 
     if (!inhibitWindStates) {
-        if (treatWindStatesAsTruth) {
-            P[23][23] = P[22][22] = 0.0f;
-        } else {
-            for (uint8_t i=22; i<=23; i++) P[i][i] = constrain_ftype(P[i][i],0.0f,WIND_VEL_VARIANCE_MAX);
-        }
+        for (uint8_t i=22; i<=23; i++) P[i][i] = constrain_ftype(P[i][i],0.0f,WIND_VEL_VARIANCE_MAX);
     } else {
         zeroCols(P,22,23);
         zeroRows(P,22,23);
@@ -2012,23 +1974,6 @@ void NavEKF3_core::MagTableConstrain(void)
 // constrain states to prevent ill-conditioning
 void NavEKF3_core::ConstrainStates()
 {
-    // State constraints as of March 2025
-    // This table documents the limits applied to each EKF state.
-    // These are designed to keep state estimates within physically realistic bounds and prevent divergence.
-    // +---------------------------------------------------------------------------------------------------------+
-    // | State Index  |      State Name                 |  State Units  | State Constraint Range                 |
-    // +---------------------------------------------------------------------------------------------------------+
-    // |  0 .. 3      | Attitude Quaternion             | unitless      | [-1.0, 1.0]                            |
-    // |  4 .. 6      | Velocity (North, East, Down)    | m/s           | [-500, 500]                            |
-    // |  7 .. 8      | Position (North, East)          | m             | [-50e6,50e6]                           |
-    // |  9 (z)       | Position (Down / Altitude)      | m             | [-40000, 10000]                        |
-    // | 10 .. 12     | Gyro Bias (X, Y, Z)             | rad           | [-0.5, 0.5] * dtEkfAvg                 |
-    // | 13 .. 15     | Accel Bias (X, Y, Z)            | m/s²          | [-_accBiasLim, _accBiasLim] * dtEkfAvg |
-    // | 16 .. 18     | Earth Magnetic Field (X, Y, Z)  | Gauss         | [-1.0, 1.0]                            | or constrained by MagTableConstrain() if available
-    // | 19 .. 21     | Body Magnetic Field (X, Y, Z)   | Gauss         | [-0.5, 0.5]                            |
-    // | 22 .. 23     | Wind Velocity (North, East)     | m/s           | [-100, 100]                            |
-    // +---------------------------------------------------------------------------------------------------------+
-
     // quaternions are limited between +-1
     for (uint8_t i=0; i<=3; i++) statesArray[i] = constrain_ftype(statesArray[i],-1.0f,1.0f);
     // velocity limit 500 m/sec (could set this based on some multiple of max airspeed * EAS2TAS)
@@ -2085,7 +2030,7 @@ void NavEKF3_core::setYawFromMag()
     Matrix3F Tbn_zeroYaw;
     if (order == rotationOrder::TAIT_BRYAN_321) {
         // rolled more than pitched so use 321 rotation order
-        stateStruct.quat.to_euler(eulerAngles);
+        stateStruct.quat.to_euler(eulerAngles.x, eulerAngles.y, eulerAngles.z);
         Tbn_zeroYaw.from_euler(eulerAngles.x, eulerAngles.y, 0.0f);
     } else if (order == rotationOrder::TAIT_BRYAN_312) {
         // pitched more than rolled so use 312 rotation order
@@ -2155,7 +2100,7 @@ void NavEKF3_core::calcTiltErrorVariance()
     const ftype &q2 = stateStruct.quat[2];
     const ftype &q3 = stateStruct.quat[3];
 
-    // equations generated by quaternion_error_propagation(): in derivation/generate_2.py
+    // equations generated by quaternion_error_propagation(): in AP_NavEKF3/derivation/main.py
     // only diagonals have been used
     // dq0 ... dq3  terms have been zeroed
     const ftype PS1 = q0*q1 + q2*q3;
@@ -2209,7 +2154,6 @@ void NavEKF3_core::bestRotationOrder(rotationOrder &order)
 // and log with value generated by NavEKF3_core::calcTiltErrorVariance()
 void NavEKF3_core::verifyTiltErrorVariance()
 {
-#if HAL_LOGGING_ENABLED
     const Vector3f gravity_ef = Vector3f(0.0f,0.0f,1.0f);
     Matrix3f Tnb;
     const float quat_delta = 0.001f;
@@ -2249,7 +2193,6 @@ void NavEKF3_core::verifyTiltErrorVariance()
         };
         AP::logger().WriteBlock(&msg, sizeof(msg));
     }
-#endif  // HAL_LOGGING_ENABLED
 }
 #endif
 

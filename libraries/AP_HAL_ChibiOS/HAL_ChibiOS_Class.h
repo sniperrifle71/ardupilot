@@ -21,11 +21,13 @@
 #include <AP_HAL_Empty/AP_HAL_Empty_Namespace.h>
 #include <AP_HAL_ChibiOS/AP_HAL_ChibiOS_Namespace.h>
 #include "hwdef/common/halconf.h"
-#if HAL_USE_FATFS
+#ifdef USE_POSIX
 #include <ff.h>
 #endif
 #include <stdio.h>
 #include "ch.h"
+#include "hal.h"
+#include "hrt.h"
 
 class HAL_ChibiOS : public AP_HAL::HAL {
 public:

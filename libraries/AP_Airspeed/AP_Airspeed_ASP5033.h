@@ -14,25 +14,15 @@
  */
 #pragma once
 
-#include "AP_Airspeed_config.h"
-
-#if AP_AIRSPEED_ASP5033_ENABLED
-
 /*
   backend driver for airspeed from I2C
  */
 #include "AP_Airspeed_Backend.h"
-#include <AP_HAL/I2CDevice.h>
 
 class AP_Airspeed_ASP5033 : public AP_Airspeed_Backend
 {
 public:
     using AP_Airspeed_Backend::AP_Airspeed_Backend;
-
-    ~AP_Airspeed_ASP5033(void) {
-        delete dev;
-    }
-
     bool init() override;
 
     // return the current differential_pressure in Pascal
@@ -52,7 +42,5 @@ private:
     uint32_t temp_count;
     uint32_t last_sample_ms;
 
-    AP_HAL::I2CDevice *dev;
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev;
 };
-
-#endif  // AP_AIRSPEED_ASP5033_ENABLED

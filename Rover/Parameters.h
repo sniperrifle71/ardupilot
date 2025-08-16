@@ -2,20 +2,10 @@
 
 #include <AP_Common/AP_Common.h>
 
-#include "RC_Channel_Rover.h"
-#include <AC_Avoidance/AC_Avoid.h>
+#include "RC_Channel.h"
 #include "AC_Sprayer/AC_Sprayer.h"
-#include <AP_AIS/AP_AIS.h>
-#include <AP_Beacon/AP_Beacon.h>
-#include <AP_Follow/AP_Follow.h>
-#include <AP_Proximity/AP_Proximity.h>
+#include "AP_Gripper/AP_Gripper.h"
 #include "AP_Rally.h"
-#include <AP_SmartRTL/AP_SmartRTL.h>
-#include <AP_Stats/AP_Stats.h>
-#include "AP_Torqeedo/AP_Torqeedo.h"
-#include <AP_WindVane/AP_WindVane.h>
-
-#define AP_PARAM_VEHICLE_NAME rover
 
 // Global parameter class.
 //
@@ -56,8 +46,6 @@ public:
         k_param_battery_volt_pin,
         k_param_battery_curr_pin,
 
-        k_param_precland = 24,
-
         // braking
         k_param_braking_percent_old = 30,   // unused
         k_param_braking_speederr_old,       // unused
@@ -71,31 +59,31 @@ public:
 
         // 97: RSSI
         k_param_rssi = 97,
-        k_param_rpm_sensor_old, // unused - moved to vehicle
-
+        k_param_rpm_sensor,     // rpm sensor 98
+        
         // 100: Arming parameters
         k_param_arming = 100,
 
         // 110: Telemetry control
         //
-        k_param_gcs0_unused = 110,  // unused in ArduPilot-4.7
-        k_param_gcs1_unused,        // unused in ArduPilot-4.7
-        k_param_sysid_this_mav_old,
-        k_param_sysid_my_gcs_old,
+        k_param_gcs0 = 110,         // stream rates for uartA
+        k_param_gcs1,               // stream rates for uartC
+        k_param_sysid_this_mav,
+        k_param_sysid_my_gcs,
         k_param_serial0_baud_old,   // unused
         k_param_serial1_baud_old,   // unused
-        k_param_telem_delay_old,
+        k_param_telem_delay,
         k_param_skip_gyro_cal,      // unused
-        k_param_gcs2_unused,        // unused in ArduPilot-4.7
+        k_param_gcs2,               // stream rates for uartD
         k_param_serial2_baud_old,   // unused
         k_param_serial2_protocol,   // deprecated, can be deleted
-        k_param_serial_manager_old,     // serial manager library
+        k_param_serial_manager,     // serial manager library
         k_param_cli_enabled_old,    // unused
-        k_param_gcs3_unused,        // unused in ArduPilot-4.7
+        k_param_gcs3,
         k_param_gcs_pid_mask,
-        k_param_gcs4_unused,        // unused in ArduPilot-4.7
-        k_param_gcs5_unused,        // unused in ArduPilot-4.7
-        k_param_gcs6_unused,        // unused in ArduPilot-4.7
+        k_param_gcs4,
+        k_param_gcs5,
+        k_param_gcs6,
 
         //
         // 130: Sensor parameters
@@ -217,20 +205,18 @@ public:
         k_param_ins,
         k_param_compass,
         k_param_rcmap,
-        k_param_L1_controller,          // unused
+        k_param_L1_controller,
         k_param_steerController_old,    // unused
         k_param_barometer,
         k_param_notify,
         k_param_button,
         k_param_osd,
-        k_param_optflow,
 
         k_param_logger = 253,  // Logging Group
 
         // 254,255: reserved
 
         k_param_vehicle = 257, // vehicle common block of parameters
-        k_param__gcs = 258,
         };
 
     AP_Int16    format_version;
@@ -240,6 +226,12 @@ public:
     AP_Int32    log_bitmask;
     AP_Int8     reset_switch_chan;
     AP_Int8     initial_mode;
+
+    // Telemetry control
+    //
+    AP_Int16    sysid_this_mav;
+    AP_Int16    sysid_my_gcs;
+    AP_Int8     telem_delay;
 
     // navigation parameters
     //
@@ -252,7 +244,7 @@ public:
     // Throttle
     //
     AP_Int8     throttle_cruise;
-    AP_Enum<PilotSteerType>     pilot_steer_type;
+    AP_Int8     pilot_steer_type;
 
     // failsafe control
     AP_Int8     fs_action;
@@ -287,27 +279,33 @@ public:
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
 
+#if STATS_ENABLED == ENABLED
+    // vehicle statistics
+    AP_Stats stats;
+#endif
+
+    // whether to enforce acceptance of packets only from sysid_my_gcs
+    AP_Int8 sysid_enforce;
+
     // RC input channels
     RC_Channels_Rover rc_channels;
 
     // control over servo output ranges
     SRV_Channels servo_channels;
 
-#if AP_ROVER_ADVANCED_FAILSAFE_ENABLED
+#if ADVANCED_FAILSAFE == ENABLED
     // advanced failsafe library
     AP_AdvancedFailsafe_Rover afs;
 #endif
 
-#if AP_BEACON_ENABLED
     AP_Beacon beacon;
-#endif
+
+    // Motor library
+    AP_MotorsUGV motors;
 
     // wheel encoders
     AP_WheelEncoder wheel_encoder;
     AP_WheelRateControl wheel_rate_control;
-
-    // Motor library
-    AP_MotorsUGV motors;
 
     // steering and throttle controller
     AR_AttitudeControl attitude_control;
@@ -327,20 +325,16 @@ public:
     // frame class for vehicle
     AP_Int8 frame_class;
 
+    // fence library
+    AC_Fence fence;
+
 #if HAL_PROXIMITY_ENABLED
     // proximity library
     AP_Proximity proximity;
 #endif
 
-#if MODE_DOCK_ENABLED
-    // we need a pointer to the mode for the G2 table
-    class ModeDock *mode_dock_ptr;
-#endif
-
-#if AP_AVOIDANCE_ENABLED
     // avoidance library
     AC_Avoid avoid;
-#endif
 
     // pitch angle at 100% throttle
     AP_Float bal_pitch_max;
@@ -348,10 +342,8 @@ public:
     // pitch/roll angle for crash check
     AP_Int8 crash_angle;
 
-#if AP_FOLLOW_ENABLED
     // follow mode library
     AP_Follow follow;
-#endif
 
     // frame type for vehicle (used for vectored motor vehicles and custom motor configs)
     AP_Int8 frame_type;
@@ -365,10 +357,12 @@ public:
     AC_Sprayer sprayer;
 #endif
 
-#if HAL_RALLY_ENABLED
+#if GRIPPER_ENABLED
+    AP_Gripper gripper;
+#endif
+
     // Rally point library
     AP_Rally_Rover rally;
-#endif
 
     // Simple mode types
     AP_Int8 simple_type;
@@ -376,10 +370,11 @@ public:
     // windvane
     AP_WindVane windvane;
 
-#if AP_MISSION_ENABLED
+    // Airspeed
+    AP_Airspeed airspeed;
+
     // mission behave
-    AP_Enum<ModeAuto::DoneBehaviour> mis_done_behave;
-#endif
+    AP_Int8 mis_done_behave;
 
     // balance both pitch trim
     AP_Float bal_pitch_trim;
@@ -387,16 +382,18 @@ public:
     // stick mixing for auto modes
     AP_Int8     stick_mixing;
 
+#ifdef ENABLE_SCRIPTING
+    AP_Scripting scripting;
+#endif // ENABLE_SCRIPTING
+
     // waypoint navigation
-    AR_WPNav_OA wp_nav;
+    AR_WPNav wp_nav;
 
     // Sailboat functions
     Sailboat sailboat;
 
-#if AP_OAPATHPLANNER_ENABLED
     // object avoidance path planning
     AP_OAPathPlanner oa;
-#endif
 
     // maximum speed for vehicle
     AP_Float speed_max;
@@ -406,28 +403,6 @@ public:
 
     // FS options
     AP_Int32 fs_options;
-
-#if HAL_TORQEEDO_ENABLED
-    // torqeedo motor driver
-    AP_Torqeedo torqeedo;
-#endif
-
-    // position controller
-    AR_PosControl pos_control;
-
-    // guided options bitmask
-    AP_Int32 guided_options;
-
-    // manual mode options
-    AP_Int32 manual_options;
-
-    // manual mode steering expo
-    AP_Float manual_steering_expo;
-
-    // FS GCS timeout trigger time
-    AP_Float fs_gcs_timeout;
-
-    class ModeCircle mode_circle;
 };
 
 extern const AP_Param::Info var_info[];

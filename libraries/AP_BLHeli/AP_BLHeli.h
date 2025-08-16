@@ -24,9 +24,9 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 
-#define HAVE_AP_BLHELI_SUPPORT HAL_SUPPORT_RCOUT_SERIAL
-
 #if HAL_SUPPORT_RCOUT_SERIAL
+
+#define HAVE_AP_BLHELI_SUPPORT
 
 #include <AP_ESC_Telem/AP_ESC_Telem_Backend.h>
 
@@ -43,7 +43,7 @@ public:
     AP_BLHeli();
     
     void update(void);
-    void init(uint32_t motor_mask, AP_HAL::RCOutput::output_mode mode);
+    void init(void);
     void update_telemetry(void);
     bool process_input(uint8_t b);
 
@@ -53,9 +53,7 @@ public:
         return channel_bidir_dshot_mask.get() & (1U << motor_map[esc_index]);
     }
 
-    uint32_t get_bidir_dshot_mask() const { return channel_bidir_dshot_mask.get(); }
-    uint8_t get_motor_poles() const { return motor_poles.get(); }
-    uint16_t get_telemetry_rate() const { return telem_rate.get(); }
+    uint16_t get_bidir_dshot_mask() const { return channel_bidir_dshot_mask.get(); }
 
     static AP_BLHeli *get_singleton(void) {
         return _singleton;
@@ -233,18 +231,16 @@ private:
 
     // have we disabled motor outputs?
     bool motors_disabled;
-    // mask of channels that should normally be disabled
-    uint32_t motors_disabled_mask;
 
     // have we locked the UART?
     bool uart_locked;
 
-    // true if we have a mix of reversible and normal ESC
+    // true if we have a mix of reversable and normal ESC
     bool mixed_type;
 
     // mapping from BLHeli motor numbers to RC output channels
     uint8_t motor_map[max_motors];
-    uint32_t motor_mask;
+    uint16_t motor_mask;
 
     // convert between servo number and FMU channel number for ESC telemetry
     uint8_t chan_offset;
@@ -257,11 +253,9 @@ private:
     uint32_t last_telem_byte_read_us;
     int8_t last_control_port;
 
-    void serial_end();
     bool msp_process_byte(uint8_t c);
     void blheli_crc_update(uint8_t c);
     bool blheli_4way_process_byte(uint8_t c);
-    uint8_t blheli_chan_to_output_chan(uint8_t motor);
     void msp_send_ack(uint8_t cmd);
     void msp_send_reply(uint8_t cmd, const uint8_t *buf, uint8_t len);
     void putU16(uint8_t *b, uint16_t v);
@@ -284,7 +278,7 @@ private:
     void BL_SendCMDRunRestartBootloader(void);
     uint8_t BL_SendCMDSetBuffer(const uint8_t *buf, uint16_t nbytes);
     bool BL_WriteA(uint8_t cmd, const uint8_t *buf, uint16_t nbytes, uint32_t timeout);
-    bool BL_WriteFlash(const uint8_t *buf, uint16_t n);
+    uint8_t BL_WriteFlash(const uint8_t *buf, uint16_t n);
     bool BL_VerifyFlash(const uint8_t *buf, uint16_t n);
     void blheli_process_command(void);
     void run_connection_test(uint8_t chan);

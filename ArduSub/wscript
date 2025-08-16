@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# encoding: utf-8
 
 def build(bld):
     vehicle = bld.path.name
@@ -13,7 +14,13 @@ def build(bld):
             'AP_JSButton',
             'AP_LeakDetector',
             'AP_Motors',
+            'AP_RCMapper',
+            'AP_Beacon',
             'AP_TemperatureSensor',
+            'AP_Arming',
+            'AP_KDECAN',
+            'AP_RCMapper',
+            'AP_OSD',
         ],
     )
 

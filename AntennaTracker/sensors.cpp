@@ -13,7 +13,32 @@ void Tracker::update_ahrs()
  */
 void Tracker::update_compass(void)
 {
-    compass.read();
+    if (AP::compass().enabled() && compass.read()) {
+        ahrs.set_compass(&compass);
+    }
+}
+
+// Save compass offsets
+void Tracker::compass_save() {
+    if (AP::compass().enabled() &&
+        compass.get_learn_type() >= Compass::LEARN_INTERNAL &&
+        !hal.util->get_soft_armed()) {
+        compass.save_offsets();
+    }
+}
+
+/*
+    Accel calibration
+*/
+void Tracker::accel_cal_update() {
+    if (hal.util->get_soft_armed()) {
+        return;
+    }
+    ins.acal_update();
+    float trim_roll, trim_pitch;
+    if (ins.get_new_trim(trim_roll, trim_pitch)) {
+        ahrs.set_trim(Vector3f(trim_roll, trim_pitch, 0));
+    }
 }
 
 /*
@@ -42,7 +67,9 @@ void Tracker::update_GPS(void)
                 // Now have an initial GPS position
                 // use it as the HOME position in future startups
                 current_loc = gps.location();
-                IGNORE_RETURN(set_home(current_loc, false));
+                if (!set_home(current_loc)) {
+                    // silently ignored
+                }
                 ground_start_count = 0;
             }
         }

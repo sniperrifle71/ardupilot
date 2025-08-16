@@ -15,10 +15,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GCS_config.h"
-
-#if HAL_GCS_ENABLED
-
 #include "GCS.h"
 
 extern const AP_HAL::HAL& hal;
@@ -80,7 +76,7 @@ void GCS_MAVLINK::handle_setup_signing(const mavlink_message_t &msg) const
     mavlink_setup_signing_t packet;
     mavlink_msg_setup_signing_decode(&msg, &packet);
 
-    struct SigningKey key {};
+    struct SigningKey key;
     key.magic = SIGNING_KEY_MAGIC;
     key.timestamp = packet.initial_timestamp;
     memcpy(key.secret_key, packet.secret_key, 32);
@@ -115,7 +111,7 @@ static bool accept_unsigned_callback(const mavlink_status_t *status, uint32_t ms
 {
     if (status == mavlink_get_channel_status(MAVLINK_COMM_0)) {
         // always accept channel 0, assumed to be secure channel. This
-        // is USB on ChibiOS boards
+        // is USB on PX4 boards
         return true;
     }
     for (uint8_t i=0; i<ARRAY_SIZE(accept_list); i++) {
@@ -133,8 +129,13 @@ static bool accept_unsigned_callback(const mavlink_status_t *status, uint32_t ms
 void GCS_MAVLINK::load_signing_key(void)
 {
     struct SigningKey key;
-    if (option_enabled(Option::MAVLINK2_SIGNING_DISABLED) || !signing_key_load(key)) {
+    if (!signing_key_load(key)) {
         return;
+    }
+    mavlink_status_t *status = mavlink_get_channel_status(chan);
+    if (status == nullptr) {
+        hal.console->printf("Failed to load signing key - no status");
+        return;        
     }
     memcpy(signing.secret_key, key.secret_key, 32);
     signing.link_id = (uint8_t)chan;
@@ -155,11 +156,11 @@ void GCS_MAVLINK::load_signing_key(void)
     }
     if (all_zero) {
         // disable signing
-        _channel_status.signing = nullptr;
-        _channel_status.signing_streams = nullptr;
+        status->signing = nullptr;
+        status->signing_streams = nullptr;
     } else {
-        _channel_status.signing = &signing;
-        _channel_status.signing_streams = &signing_streams;
+        status->signing = &signing;
+        status->signing_streams = &signing_streams;
     }
 }
 
@@ -263,4 +264,3 @@ uint8_t GCS_MAVLINK::packet_overhead_chan(mavlink_channel_t chan)
     return MAVLINK_NUM_NON_PAYLOAD_BYTES + reserved_space;
 }
 
-#endif  // HAL_GCS_ENABLED

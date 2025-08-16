@@ -16,8 +16,7 @@
 #pragma once
 
 #include <AP_Winch/AP_Winch_Backend.h>
-
-#if AP_WINCH_PWM_ENABLED
+#include <SRV_Channel/SRV_Channel.h>
 
 class AP_Winch_PWM : public AP_Winch_Backend {
 public:
@@ -36,10 +35,8 @@ public:
     // send status to ground station
     void send_status(const GCS_MAVLINK &channel) override;
 
-#if HAL_LOGGING_ENABLED
     // write log
     void write_log() override;
-#endif
 
 private:
 
@@ -49,5 +46,3 @@ private:
     uint32_t control_update_ms; // last time control_winch was called
     float line_length;          // estimated length of line in meters
 };
-
-#endif  // AP_WINCH_PWM_ENABLED

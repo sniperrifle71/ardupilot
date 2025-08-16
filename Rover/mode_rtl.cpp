@@ -1,3 +1,4 @@
+#include "mode.h"
 #include "Rover.h"
 
 bool ModeRTL::_enter()
@@ -7,11 +8,8 @@ bool ModeRTL::_enter()
         return false;
     }
 
-    // initialise waypoint navigation library
-    g2.wp_nav.init(MAX(0.0f, g2.rtl_speed));
-
     // set target to the closest rally point or home
-#if HAL_RALLY_ENABLED
+#if AP_RALLY == ENABLED
     if (!g2.wp_nav.set_desired_location(g2.rally.calc_best_rally_or_home_location(rover.current_loc, ahrs.get_home().alt))) {
         return false;
     }
@@ -21,6 +19,13 @@ bool ModeRTL::_enter()
         return false;
     }
 #endif
+
+    // initialise waypoint speed
+    if (is_positive(g2.rtl_speed)) {
+        g2.wp_nav.set_desired_speed(g2.rtl_speed);
+    } else {
+        g2.wp_nav.set_desired_speed_to_default();
+    }
 
     send_notification = true;
     _loitering = false;
@@ -37,7 +42,7 @@ void ModeRTL::update()
         // send notification
         if (send_notification) {
             send_notification = false;
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Reached destination");
+            gcs().send_text(MAV_SEVERITY_INFO, "Reached destination");
         }
 
         // we have reached the destination
@@ -80,5 +85,9 @@ bool ModeRTL::reached_destination() const
 // set desired speed in m/s
 bool ModeRTL::set_desired_speed(float speed)
 {
-    return g2.wp_nav.set_speed_max(speed);
+    if (is_negative(speed)) {
+        return false;
+    }
+    g2.wp_nav.set_desired_speed(speed);
+    return true;
 }

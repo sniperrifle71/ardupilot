@@ -1,8 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL_Boards.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 
 class PACKED AP_FWVersion {
 
@@ -29,8 +28,6 @@ public:
     const uint32_t os_sw_version;
     const char *fw_string;
     const char *fw_hash_str;
-    const uint32_t fw_hash;
-    const char *fw_string_original;
     const char *fw_short_string;
     const char *middleware_name;
     const char *middleware_hash_str;

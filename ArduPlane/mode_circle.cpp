@@ -4,7 +4,7 @@
 bool ModeCircle::_enter()
 {
     // the altitude to circle at is taken from the current altitude
-    plane.next_WP_loc = plane.current_loc;
+    plane.next_WP_loc.alt = plane.current_loc.alt;
 
     return true;
 }

@@ -71,8 +71,6 @@ void LR_MsgHandler_REV2::process_message(uint8_t *msgbytes)
     case AP_DAL::Event::checkLaneSwitch:
         ekf2.checkLaneSwitch();
         break;
-    case AP_DAL::Event::setSourceSet0 ... AP_DAL::Event::setSourceSet2:
-        break;
     }
     if (replay_force_ekf3) {
         LR_MsgHandler_REV3 h{f, ekf2, ekf3};
@@ -129,9 +127,6 @@ void LR_MsgHandler_REV3::process_message(uint8_t *msgbytes)
         break;
     case AP_DAL::Event::checkLaneSwitch:
         ekf3.checkLaneSwitch();
-        break;
-    case AP_DAL::Event::setSourceSet0 ... AP_DAL::Event::setSourceSet2:
-        ekf3.setPosVelYawSourceSet(uint8_t(msg.event)-uint8_t(AP_DAL::Event::setSourceSet0));
         break;
     }
 
@@ -289,12 +284,6 @@ void LR_MsgHandler_REPH::process_message(uint8_t *msgbytes)
     AP::dal().handle_message(msg, ekf2, ekf3);
 }
 
-void LR_MsgHandler_RSLL::process_message(uint8_t *msgbytes)
-{
-    MSG_CREATE(RSLL, msgbytes);
-    AP::dal().handle_message(msg, ekf2, ekf3);
-}
-
 void LR_MsgHandler_REVH::process_message(uint8_t *msgbytes)
 {
     MSG_CREATE(REVH, msgbytes);
@@ -329,10 +318,4 @@ void LR_MsgHandler_PARM::process_message(uint8_t *msg)
 
     float value = require_field_float(msg, "Value");
     set_parameter(parameter_name, value);
-}
-
-void LR_MsgHandler_RTER::process_message(uint8_t *msgbytes)
-{
-    MSG_CREATE(RTER, msgbytes);
-    AP::dal().handle_message(msg, ekf2, ekf3);
 }

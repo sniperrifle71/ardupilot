@@ -21,6 +21,12 @@
 
 extern const AP_HAL::HAL& hal;
 
+// constructor
+AP_WheelEncoder_Quadrature::AP_WheelEncoder_Quadrature(AP_WheelEncoder &frontend, uint8_t instance, AP_WheelEncoder::WheelEncoder_State &state) :
+    AP_WheelEncoder_Backend(frontend, instance, state)
+{
+}
+
 // check if pin has changed and initialise gpio event callback
 void AP_WheelEncoder_Quadrature::update_pin(uint8_t &pin,
                                             uint8_t new_pin,
@@ -34,7 +40,7 @@ void AP_WheelEncoder_Quadrature::update_pin(uint8_t &pin,
     // remove old gpio event callback if present
     if (pin != (uint8_t)-1 &&
         !hal.gpio->detach_interrupt(pin)) {
-        GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "WEnc: Failed to detach from pin %u", pin);
+        gcs().send_text(MAV_SEVERITY_WARNING, "WEnc: Failed to detach from pin %u", pin);
         // ignore this failure or the user may be stuck
     }
 
@@ -51,7 +57,7 @@ void AP_WheelEncoder_Quadrature::update_pin(uint8_t &pin,
                                     bool,
                                     uint32_t),
                 AP_HAL::GPIO::INTERRUPT_BOTH)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "WEnc: Failed to attach to pin %u", pin);
+            gcs().send_text(MAV_SEVERITY_WARNING, "WEnc: Failed to attach to pin %u", pin);
         }
         pin_value = hal.gpio->read(pin);
     }
@@ -138,5 +144,5 @@ void AP_WheelEncoder_Quadrature::irq_handler(uint8_t pin,
     update_phase_and_error_count();
 
     // record update time
-    irq_state.last_reading_ms = timestamp * 1e-3f;
+    irq_state.last_reading_ms = timestamp;
 }

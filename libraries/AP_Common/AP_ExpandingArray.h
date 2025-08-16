@@ -53,7 +53,8 @@ public:
     ~AP_ExpandingArrayGeneric(void);
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_ExpandingArrayGeneric);
+    AP_ExpandingArrayGeneric(const AP_ExpandingArrayGeneric &other) = delete;
+    AP_ExpandingArrayGeneric &operator=(const AP_ExpandingArrayGeneric&) = delete;
 
     // current maximum number of items (using expand may increase this)
     uint16_t max_items() const { return chunk_size * chunk_count; }
@@ -82,12 +83,13 @@ class AP_ExpandingArray : public AP_ExpandingArrayGeneric
 {
 public:
 
-    AP_ExpandingArray(uint16_t elements_per_chunk) :
+    AP_ExpandingArray<T>(uint16_t elements_per_chunk) :
         AP_ExpandingArrayGeneric(sizeof(T), elements_per_chunk)
     {}
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_ExpandingArray);
+    AP_ExpandingArray<T>(const AP_ExpandingArray<T> &other) = delete;
+    AP_ExpandingArray<T> &operator=(const AP_ExpandingArray<T>&) = delete;
 
     // allow use as an array for assigning to elements. no bounds checking is performed
     T &operator[](uint16_t i)
@@ -97,7 +99,7 @@ public:
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wcast-align"
         T *el_array = (T *)chunk_ptrs[chunk_num];
-        #pragma GCC diagnostic pop
+        #pragma pop
         return el_array[chunk_index];
     }
 
@@ -109,7 +111,7 @@ public:
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wcast-align"
         const T *el_array = (const T *)chunk_ptrs[chunk_num];
-        #pragma GCC diagnostic pop
+        #pragma pop
         return el_array[chunk_index];
     }
 };

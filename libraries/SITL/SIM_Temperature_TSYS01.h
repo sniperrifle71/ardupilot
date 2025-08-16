@@ -1,7 +1,3 @@
-#include "SIM_config.h"
-
-#if AP_SIM_TEMPERATURE_TSYS01_ENABLED
-
 #include "SIM_I2CDevice.h"
 
 /*
@@ -24,6 +20,7 @@ public:
 private:
 
     // should be a call on aircraft:
+    float some_temperature = 26.5;
     float last_temperature = -1000.0f;
 
     enum class State {
@@ -45,8 +42,6 @@ private:
         return AP_HAL::millis() - state_start_time_ms;
     }
 
-    float get_sim_temperature() const;
-
     float temperature_for_adc(uint32_t adc) const;
     uint32_t calculate_adc(float temperature) const;
     uint32_t adc;
@@ -63,10 +58,7 @@ private:
         READ_ADC    = 0x00,
     };
 
-    // _k[0] is unused
-    static constexpr int32_t _k[] { 0, 40781, 32791, 36016, 24926, 28446 };
+    static constexpr int32_t _k[] { 40781, 32791, 36016, 24926, 28446 };
 };
 
 } // namespace SITL
-
-#endif  // AP_SIM_TEMPERATURE_TSYS01_ENABLED

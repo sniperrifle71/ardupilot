@@ -1,21 +1,27 @@
 #pragma once
 
-#include "AP_RangeFinder_config.h"
+#include "AP_RangeFinder_Backend.h"
+#include <AP_CANManager/AP_CANSensor.h>
 
-#if AP_RANGEFINDER_USD1_CAN_ENABLED
-#include "AP_RangeFinder_Backend_CAN.h"
+#if HAL_MAX_CAN_PROTOCOL_DRIVERS
 
-class AP_RangeFinder_USD1_CAN : public AP_RangeFinder_Backend_CAN {
+class AP_RangeFinder_USD1_CAN : public CANSensor, public AP_RangeFinder_Backend {
 public:
-    AP_RangeFinder_USD1_CAN(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params) :
-        AP_RangeFinder_Backend_CAN(_state, _params, AP_CAN::Protocol::USD1, "usd1")
-    {
-    }
+    AP_RangeFinder_USD1_CAN(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params);
+
+    void update() override;
 
     // handler for incoming frames
-    bool handle_frame(AP_HAL::CANFrame &frame) override;
-
-    static const struct AP_Param::GroupInfo var_info[];
+    void handle_frame(AP_HAL::CANFrame &frame) override;
+    
+protected:
+    virtual MAV_DISTANCE_SENSOR _get_mav_distance_sensor_type() const override {
+        return MAV_DISTANCE_SENSOR_RADAR;
+    }
+private:
+    bool new_data;
+    uint16_t _distance_cm;
+    uint32_t _last_reading_ms;
 };
+#endif //HAL_MAX_CAN_PROTOCOL_DRIVERS
 
-#endif  // AP_RANGEFINDER_USD1_CAN_ENABLED

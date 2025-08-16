@@ -14,10 +14,7 @@
  */
 #include "AP_Baro_BMP388.h"
 
-#if AP_BARO_BMP388_ENABLED
-
 #include <utility>
-#include <AP_Math/AP_Math.h>
 
 extern const AP_HAL::HAL &hal;
 
@@ -27,10 +24,8 @@ extern const AP_HAL::HAL &hal;
 #define BMP388_MODE BMP388_MODE_NORMAL
 
 #define BMP388_ID            0x50
-#define BMP390_ID            0x60
 
 #define BMP388_REG_ID        0x00
-#define BMP388_REV_ID_ADDR   0x01
 #define BMP388_REG_ERR       0x02
 #define BMP388_REG_STATUS    0x03
 #define BMP388_REG_PRESS     0x04 // 24 bit
@@ -66,7 +61,7 @@ AP_Baro_Backend *AP_Baro_BMP388::probe(AP_Baro &baro,
         return nullptr;
     }
 
-    AP_Baro_BMP388 *sensor = NEW_NOTHROW AP_Baro_BMP388(baro, std::move(_dev));
+    AP_Baro_BMP388 *sensor = new AP_Baro_BMP388(baro, std::move(_dev));
     if (!sensor || !sensor->init()) {
         delete sensor;
         return nullptr;
@@ -92,18 +87,9 @@ bool AP_Baro_BMP388::init()
     dev->write_register(BMP388_REG_PWR_CTRL, 0x33, true);
     
     uint8_t whoami;
-    if (!read_registers(BMP388_REG_ID, &whoami, 1)) {
-        return false;
-    }
-
-    switch (whoami) {
-    case BMP388_ID:
-        dev->set_device_type(DEVTYPE_BARO_BMP388);
-        break;
-    case BMP390_ID:
-        dev->set_device_type(DEVTYPE_BARO_BMP390);
-        break;
-    default:
+    if (!read_registers(BMP388_REG_ID, &whoami, 1)  ||
+        whoami != BMP388_ID) {
+        // not a BMP388
         return false;
     }
 
@@ -120,6 +106,7 @@ bool AP_Baro_BMP388::init()
 
     instance = _frontend.register_sensor();
 
+    dev->set_device_type(DEVTYPE_BARO_BMP388);
     set_bus_id(instance, dev->get_bus_id());
 
     // request 50Hz update
@@ -130,7 +117,7 @@ bool AP_Baro_BMP388::init()
 
 
 
-//  accumulate a new sensor reading
+//  acumulate a new sensor reading
 void AP_Baro_BMP388::timer(void)
 {
     uint8_t buf[7];
@@ -245,11 +232,9 @@ bool AP_Baro_BMP388::read_registers(uint8_t reg, uint8_t *data, uint8_t len)
     uint8_t b[len+2];
     b[0] = reg | 0x80;
     memset(&b[1], 0, len+1);
-    if (!dev->transfer_fullduplex(b, len+2)) {
+    if (!dev->transfer(b, len+2, b, len+2)) {
         return false;
     }
     memcpy(data, &b[2], len);
     return true;
 }
-
-#endif  // AP_BARO_BMP388_ENABLED

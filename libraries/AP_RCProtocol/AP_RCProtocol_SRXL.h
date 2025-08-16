@@ -17,10 +17,6 @@
 
 #pragma once
 
-#include "AP_RCProtocol_config.h"
-
-#if AP_RCPROTOCOL_SRXL_ENABLED
-
 #include "AP_RCProtocol.h"
 #include "SoftSerial.h"
 
@@ -68,5 +64,3 @@ private:
 
     SoftSerial ss{115200, SoftSerial::SERIAL_CONFIG_8N1};
 };
-
-#endif  // AP_RCPROTOCOL_SRXL_ENABLED

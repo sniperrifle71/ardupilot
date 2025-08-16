@@ -16,55 +16,27 @@
   simulate ship takeoff/landing
 */
 
-#include "SIM_config.h"
-
-#if AP_SIM_SHIP_ENABLED
-
 #include "SIM_Ship.h"
-
 #include "SITL.h"
 
 #include <stdio.h>
 
 #include "SIM_Aircraft.h"
 #include <AP_HAL_SITL/SITL_State.h>
-#include <AP_Terrain/AP_Terrain.h>
+
+// use a spare channel for send. This is static to avoid mavlink
+// header import in SIM_Ship.h
+static const mavlink_channel_t mavlink_ch = (mavlink_channel_t)(MAVLINK_COMM_0+6);
 
 using namespace SITL;
 
 // SITL Ship parameters
 const AP_Param::GroupInfo ShipSim::var_info[] = {
-    // @Param: ENABLE
-    // @DisplayName: Ship landing Enable
-    // @Description: Enable ship landing simulation
-    // @Values: 0:Disable,1:Enabled
     AP_GROUPINFO("ENABLE",    1, ShipSim,  enable, 0),
-    // @Param: SPEED
-    // @DisplayName: Ship Speed
-    // @Description: Speed of the ship
-    // @Units: m/s
     AP_GROUPINFO("SPEED",     2, ShipSim,  speed, 3),
-    // @Param: PSIZE
-    // @DisplayName: Path Size
-    // @Description: Diameter of the circle the ship is traveling on
-    // @Units: m
     AP_GROUPINFO("PSIZE",     3, ShipSim,  path_size, 1000),
-    // @Param: SYSID
-    // @DisplayName: System ID
-    // @Description: System ID of the ship
-    // @Range: 1 255
     AP_GROUPINFO("SYSID",     4, ShipSim,  sys_id, 17),
-    // @Param: DSIZE
-    // @DisplayName: Deck Size
-    // @Description: Size of the ship's deck
-    // @Units: m
     AP_GROUPINFO("DSIZE",     5, ShipSim,  deck_size, 10),
-    // @Param: OFS
-    // @DisplayName: Ship landing pad offset
-    // @Description: Defines the offset of the ship's landing pad w.r.t. the ship's origin, i.e. where the beacon is placed on the ship
-    // @Units: m
-    // @Vector3Parameter: 1
-    AP_GROUPINFO("OFS",       7, ShipSim,  offset, 0),
     AP_GROUPEND
 };
 
@@ -97,20 +69,10 @@ void Ship::update(float delta_t)
 
 ShipSim::ShipSim()
 {
-    AP_Param::setup_object_defaults(this, var_info);
-}
-
-/*
-  get the location of the ship
- */
-bool ShipSim::get_location(Location &loc) const
-{
-    if (!enable) {
-        return false;
+    if (!valid_channel(mavlink_ch)) {
+        AP_HAL::panic("Invalid mavlink channel for ShipSim");
     }
-    loc = home;
-    loc.offset(ship.position.x, ship.position.y);
-    return true;
+    AP_Param::setup_object_defaults(this, var_info);
 }
 
 /*
@@ -118,33 +80,18 @@ bool ShipSim::get_location(Location &loc) const
  */
 Vector2f ShipSim::get_ground_speed_adjustment(const Location &loc, float &yaw_rate)
 {
-    Location shiploc;
-    if (!get_location(shiploc)) {
+    if (!enable) {
         yaw_rate = 0;
         return Vector2f(0,0);
     }
+    Location shiploc = home;
+    shiploc.offset(ship.position.x, ship.position.y);
     if (loc.get_distance(shiploc) > deck_size) {
         yaw_rate = 0;
         return Vector2f(0,0);
     }
-
-    // find center of the circle that the ship is on
-    Location center = shiploc;
-    const float path_radius = path_size.get()*0.5;
-    center.offset_bearing(ship.heading_deg+(ship.yaw_rate>0?90:-90), path_radius);
-
-    // scale speed for ratio of distances
-    const float p = center.get_distance(loc) / path_radius;
-    const float scaled_speed = ship.speed * p;
-
-    // work out how far around the circle ahead or behind we are for
-    // rotating velocity
-    const float bearing1 = center.get_bearing(loc);
-    const float bearing2 = center.get_bearing(shiploc);
-    const float heading = ship.heading_deg + degrees(bearing1-bearing2);
-
-    Vector2f vel(scaled_speed, 0);
-    vel.rotate(radians(heading));
+    Vector2f vel(ship.speed, 0);
+    vel.rotate(radians(ship.heading_deg));
     yaw_rate = ship.yaw_rate;
     return vel;
 }
@@ -166,10 +113,6 @@ void ShipSim::update(void)
         if (home.lat == 0 && home.lng == 0) {
             return;
         }
-        const Vector3f &ofs = offset.get();
-        home.offset(ofs.x, ofs.y);
-        home.alt -= ofs.z*100;
-
         initialised = true;
         ::printf("ShipSim home %f %f\n", home.lat*1.0e-7, home.lng*1.0e-7);
         ship.sim = this;
@@ -203,30 +146,24 @@ void ShipSim::send_report(void)
     }
 
     uint32_t now = AP_HAL::millis();
+    mavlink_message_t msg;
+    uint16_t len;
+    uint8_t buf[300];
 
     const uint8_t component_id = MAV_COMP_ID_USER10;
 
     if (now - last_heartbeat_ms >= 1000) {
         last_heartbeat_ms = now;
-
-        const mavlink_heartbeat_t heartbeat{
-        custom_mode: 0,
-        type : MAV_TYPE_SURFACE_BOAT,
-        autopilot : MAV_AUTOPILOT_INVALID,
-        base_mode: 0,
-        system_status: 0,
-        mavlink_version: 0,
-        };
-
-        mavlink_message_t msg;
-        mavlink_msg_heartbeat_encode_status(
-            sys_id.get(),
-            component_id,
-            &mav_status,
-            &msg,
-            &heartbeat);
-        uint8_t buf[300];
-        const uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+        mavlink_msg_heartbeat_pack_chan(sys_id.get(),
+                                        component_id,
+                                        mavlink_ch,
+                                        &msg,
+                                        MAV_TYPE_SURFACE_BOAT,
+                                        MAV_AUTOPILOT_INVALID,
+                                        0,
+                                        0,
+                                        0);
+        len = mavlink_msg_to_send_buffer(buf, &msg);
         mav_socket.send(buf, len);
     }
 
@@ -234,73 +171,43 @@ void ShipSim::send_report(void)
     /*
       send a GLOBAL_POSITION_INT messages
      */
-    Location loc;
-    if (!get_location(loc)) {
-        return;
-    }
+    Location loc = home;
+    loc.offset(ship.position.x, ship.position.y);
 
-    int32_t alt_mm = home.alt * 10;  // assume home altitude
+    int32_t alt;
+    bool have_alt = false;
 
 #if AP_TERRAIN_AVAILABLE
     auto terrain = AP::terrain();
     float height;
-    if (terrain != nullptr && terrain->enabled() && terrain->height_amsl(loc, height, false)) {
-        alt_mm = height * 1000;
+    if (terrain != nullptr && terrain->enabled() && terrain->height_amsl(loc, height, true)) {
+        alt = height * 1000;
+        have_alt = true;
     }
 #endif
-
-    {  // send position
-        Vector2f vel(ship.speed, 0);
-        vel.rotate(radians(ship.heading_deg));
-
-        const mavlink_global_position_int_t global_position_int{
-        time_boot_ms: now,
-        lat: loc.lat,
-        lon: loc.lng,
-        alt: alt_mm,
-        relative_alt: 0,
-        vx: int16_t(vel.x*100),
-        vy: int16_t(vel.y*100),
-        vz: 0,
-        hdg: uint16_t(ship.heading_deg*100)
-        };
-        mavlink_message_t msg;
-        mavlink_msg_global_position_int_encode_status(
-            sys_id,
-            component_id,
-            &mav_status,
-            &msg,
-            &global_position_int);
-        uint8_t buf[300];
-        const uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-        if (len > 0) {
-            mav_socket.send(buf, len);
-        }
+    if (!have_alt) {
+        // assume home altitude
+        alt = home.alt;
     }
 
-    { // also set ATTITUDE so MissionPlanner can display ship orientation
-        const mavlink_attitude_t attitude{
-        time_boot_ms: now,
-        roll: 0,
-        pitch: 0,
-        yaw: float(radians(ship.heading_deg)),
-        rollspeed: 0,
-        pitchspeed: 0,
-        yawspeed: ship.yaw_rate
-        };
-        mavlink_message_t msg;
-        mavlink_msg_attitude_encode_status(
-            sys_id,
-            component_id,
-            &mav_status,
-            &msg,
-            &attitude);
-        uint8_t buf[300];
-        const uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-        if (len > 0) {
-            mav_socket.send(buf, len);
-        }
+    Vector2f vel(ship.speed, 0);
+    vel.rotate(radians(ship.heading_deg));
+
+    mavlink_msg_global_position_int_pack_chan(sys_id,
+                                              component_id,
+                                              mavlink_ch,
+                                              &msg,
+                                              now,
+                                              loc.lat,
+                                              loc.lng,
+                                              alt,
+                                              0,
+                                              vel.x*100,
+                                              vel.y*100,
+                                              0,
+                                              ship.heading_deg*100);
+    len = mavlink_msg_to_send_buffer(buf, &msg);
+    if (len > 0) {
+        mav_socket.send(buf, len);
     }
 }
-
-#endif  // AP_SIM_SHIP_ENABLED

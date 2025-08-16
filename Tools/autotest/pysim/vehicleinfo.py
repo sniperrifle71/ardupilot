@@ -1,5 +1,3 @@
-# flake8: noqa
-
 class VehicleInfo(object):
 
     def __init__(self):
@@ -24,8 +22,11 @@ class VehicleInfo(object):
             },
             "X": {
                 "waf_target": "bin/arducopter",
-                "default_params_filename": ["default_params/copter.parm",
-                                            "default_params/copter-X.parm"],
+                "default_params_filename": "default_params/copter.parm",
+                # this param set FRAME doesn't actually work because mavproxy
+                # won't set a parameter unless it knows of it, and the
+                # param fetch happens asynchronously
+                "extra_mavlink_cmds": "param fetch frame; param set FRAME 1;",
             },
             "bfx": {
                 "waf_target": "bin/arducopter",
@@ -46,12 +47,6 @@ class VehicleInfo(object):
                 "waf_target": "bin/arducopter",
                 "default_params_filename": ["default_params/copter.parm",
                                             "default_params/copter-hexa.parm" ],
-            },
-            "hexax": {
-                "waf_target": "bin/arducopter",
-                "default_params_filename": ["default_params/copter.parm",
-                                            "default_params/copter-hexa.parm",
-                                            "default_params/copter-X.parm", ],
             },
             "hexa-cwx": {
                 "waf_target": "bin/arducopter",
@@ -110,11 +105,7 @@ class VehicleInfo(object):
             },
             "deca-cwx": {
                 "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-deca.parm",
-                    "default_params/copter-deca-cwx.parm"
-                 ],
+                "default_params_filename": "default_params/copter.parm",
             },
             "tri": {
                 "waf_target": "bin/arducopter",
@@ -130,31 +121,6 @@ class VehicleInfo(object):
                 "waf_target": "bin/arducopter",
                 "default_params_filename": ["default_params/copter.parm",
                                             "default_params/copter-dodecahexa.parm" ],
-            },
-            "dotriaconta_octaquad_x": {
-                "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-dotriaconta_octaquad_x.parm",
-                ],
-                "frame_example_script": "MotorMatrix_dotriaconta_octaquad_x.lua",
-            },
-            "hexadeca-octa": {
-                "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-hexadeca_octa.parm"
-                ],
-                "frame_example_script": "MotorMatrix_hexadeca_octa.lua",
-            },
-            "hexadeca-octa-cwx": {
-                "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-hexadeca_octa.parm",
-                    "default_params/copter-hexadeca_octa_cwx.parm"
-                ],
-                "frame_example_script": "MotorMatrix_hexadeca_octa_cw_x.lua",
             },
             # SIM
             "IrisRos": {
@@ -179,20 +145,10 @@ class VehicleInfo(object):
                 "waf_target": "bin/arducopter-heli",
                 "default_params_filename": "default_params/copter-heli.parm",
             },
-            "heli-gas": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": ["default_params/copter-heli.parm",
-                                            "default_params/copter-heli-gas.parm"],
-            },
             "heli-dual": {
                 "waf_target": "bin/arducopter-heli",
                 "default_params_filename": ["default_params/copter-heli.parm",
                                             "default_params/copter-heli-dual.parm"],
-            },
-            "heli-blade360": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": ["default_params/copter-heli.parm",
-                ],
             },
             "singlecopter": {
                 "waf_target": "bin/arducopter",
@@ -215,25 +171,8 @@ class VehicleInfo(object):
             "Callisto": {
                 "model": "octa-quad:@ROMFS/models/Callisto.json",
                 "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-octaquad.parm",
-                    "models/Callisto.param",
-                ],
-            },
-            "quad-can": {
-                "waf_target": "bin/arducopter",
-                "default_params_filename": ["default_params/copter.parm", "default_params/quad-can.parm"],
-                "periph_params_filename": ["default_params/periph.parm", "default_params/quad-periph.parm"],
-            },
-            "freestyle": {
-                "model": "X:@ROMFS/models/freestyle.json",
-                "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-X.parm",
-                    "models/freestyle.param",
-                ],
+                "default_params_filename": ["default_params/copter.parm",
+                                            "models/Callisto.param"],
             },
         },
     },
@@ -243,11 +182,6 @@ class VehicleInfo(object):
             "heli": {
                 "waf_target": "bin/arducopter-heli",
                 "default_params_filename": "default_params/copter-heli.parm",
-            },
-            "heli-gas": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": ["default_params/copter-heli.parm",
-                                            "default_params/copter-heli-gas.parm"],
             },
             "heli-dual": {
                 "waf_target": "bin/arducopter-heli",
@@ -259,17 +193,14 @@ class VehicleInfo(object):
             #     "default_params_filename": ["default_params/copter-heli.parm",
             #                                 "default_params/copter-heli-compound.parm"],
             # },
-            "heli-blade360": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": ["default_params/copter-heli.parm",
-                ],
-            },
         },
     },
     "Blimp": {
-        "default_frame": "Blimp",
+        "default_frame": "quad",
         "frames": {
-            "Blimp": {
+            # BLIMP
+            "quad": {
+                "model": "+",
                 "waf_target": "bin/blimp",
                 "default_params_filename": "default_params/blimp.parm",
             },
@@ -281,58 +212,39 @@ class VehicleInfo(object):
             # PLANE
             "quadplane-tilttri": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/quadplane-tilttri.parm"],
+                "default_params_filename": "default_params/quadplane-tilttri.parm",
             },
             "quadplane-tilttrivec": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/quadplane-tilttrivec.parm"],
+                "default_params_filename": "default_params/quadplane-tilttrivec.parm",
             },
             "quadplane-tilthvec": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/quadplane-tilthvec.parm"],
+                "default_params_filename": ["default_params/plane.parm", "default_params/quadplane-tilthvec.parm"],
             },
             "quadplane-tri": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/quadplane-tri.parm"],
+                "default_params_filename": "default_params/quadplane-tri.parm",
             },
             "quadplane-cl84" : {
                 "waf_target" : "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/quadplane-cl84.parm"],
+                "default_params_filename": "default_params/quadplane-cl84.parm",
             },
             "quadplane": {
                 "waf_target": "bin/arduplane",
                 "default_params_filename": "default_params/quadplane.parm",
             },
-            "quadplane-ice": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm", "default_params/plane-ice.parm", "default_params/quadplane-ice.parm"],
-            },
-            "quadplane-can": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm", "default_params/quadplane-can.parm"],
-                "periph_params_filename": ["default_params/periph.parm", "default_params/quadplane-periph.parm"],
-            },
-            "quadplane-tilt": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/quadplane-tilt.parm"],
-            },
             "firefly": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm",
-                                            "default_params/firefly.parm"]
+                "default_params_filename": "default_params/firefly.parm",
             },
             "plane-elevon": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-elevons.parm"],
+                "default_params_filename": ["default_params/plane.parm", "default_params/plane-elevons.parm"],
             },
             "plane-vtail": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-vtail.parm"],
+                "default_params_filename": ["default_params/plane.parm", "default_params/plane-vtail.parm"],
             },
             "plane-tailsitter": {
                 "waf_target": "bin/arduplane",
@@ -340,39 +252,19 @@ class VehicleInfo(object):
             },
             "plane-jet": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-jet.parm"],
-            },
-            "plane-ice": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-ice.parm"],
-            },
-            "plane-3d": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": [], # defaults are loaded in SIM_Plane.cpp
-            },
-            "glider": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": "default_params/glider.parm",
-            },
-            "quadplane-copter_tailsitter": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["default_params/quadplane.parm","default_params/quadplane-copter_tailsitter.parm"],
+                "default_params_filename": ["default_params/plane.parm", "default_params/plane-jet.parm"],
             },
             "plane": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": "models/plane.parm",
+                "default_params_filename": "default_params/plane.parm",
             },
             "plane-dspoilers": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-dspoilers.parm"]
-            },
-            "plane-redundant": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-redundant.parm"]
+                "default_params_filename": ["default_params/plane.parm", "default_params/plane-dspoilers.parm"]
             },
             "plane-soaring": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": ["models/plane.parm", "default_params/plane-soaring.parm"]
+                "default_params_filename": ["default_params/plane.parm", "default_params/plane-soaring.parm"]
             },
             "gazebo-zephyr": {
                 "waf_target": "bin/arduplane",
@@ -381,12 +273,12 @@ class VehicleInfo(object):
             },
             "last_letter": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": "models/plane.parm",
+                "default_params_filename": "default_params/plane.parm",
                 "external": True,
             },
             "CRRCSim": {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": "models/plane.parm",
+                "default_params_filename": "default_params/plane.parm",
                 "external": True,
             },
             "jsbsim": {
@@ -396,16 +288,12 @@ class VehicleInfo(object):
             },
             "scrimmage-plane" : {
                 "waf_target": "bin/arduplane",
-                "default_params_filename": "models/plane.parm",
+                "default_params_filename": "default_params/plane.parm",
                 "external": True,
             },
             "calibration": {
                 "extra_mavlink_cmds": "module load sitl_calibration;",
                 "external": True,  # lies!  OTOH, hard to take off with this
-            },
-            "stratoblimp": {
-                "waf_target": "bin/arduplane",
-                "default_params_filename": "default_params/stratoblimp.parm",
             },
         },
     },
@@ -422,11 +310,6 @@ class VehicleInfo(object):
                 "default_params_filename": ["default_params/rover.parm",
                                             "default_params/rover-skid.parm"],
             },
-            "rover-omni3mecanum": {
-                "waf_target": "bin/ardurover",
-                "default_params_filename": ["default_params/rover.parm",
-                                            "default_params/rover-omni3mecanum.parm"],
-            },
             "rover-vectored": {
                 "waf_target": "bin/ardurover",
                 "default_params_filename": ["default_params/rover.parm",
@@ -437,17 +320,6 @@ class VehicleInfo(object):
                 "default_params_filename": ["default_params/rover.parm",
                                             "default_params/rover-skid.parm",
                                             "default_params/balancebot.parm"],
-            },
-            "motorboat": {
-                "waf_target": "bin/ardurover",
-                "default_params_filename": ["default_params/rover.parm",
-                                            "default_params/motorboat.parm"],
-            },
-            "motorboat-skid": {
-                "waf_target": "bin/ardurover",
-                "default_params_filename": ["default_params/rover.parm",
-                                            "default_params/motorboat.parm",
-                                            "default_params/rover-skid.parm"],
             },
             "sailboat": {
                 "waf_target": "bin/ardurover",
@@ -463,17 +335,14 @@ class VehicleInfo(object):
                 "waf_target": "bin/ardurover",
                 "default_params_filename": ["default_params/rover.parm",
                                             "default_params/rover-skid.parm"],
-                "external": True,
             },
             "airsim-rover": {
                 "waf_target": "bin/ardurover",
                 "default_params_filename": ["default_params/rover.parm",
                                             "default_params/airsim-rover.parm"],
-                "external": True,
             },
             "calibration": {
                 "extra_mavlink_cmds": "module load sitl_calibration;",
-                "external": True,
             },
         },
     },
@@ -502,15 +371,6 @@ class VehicleInfo(object):
             },
         },
     },
-    "sitl_periph_universal": {
-        "frames": {
-            "universal": {
-                "configure_target": "sitl_periph_universal",
-                "waf_target": "bin/AP_Periph",
-                "default_params_filename": "default_params/periph.parm",
-                },
-            }
-    },
 }
 
 
@@ -523,7 +383,7 @@ class VehicleInfo(object):
         return self.options[vehicle]["frames"][default_frame]["waf_target"]
 
     def options_for_frame(self, frame, vehicle, opts):
-        """Return information about how to sitl for frame e.g. build-type==sitl"""
+        """Return informatiom about how to sitl for frame e.g. build-type==sitl"""
         ret = None
         frames = self.options[vehicle]["frames"]
         if frame in frames:

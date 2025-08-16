@@ -24,7 +24,6 @@
 #include <AP_Baro/AP_Baro.h>
 #include <AP_Compass/AP_Compass.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
-#include <AP_SerialManager/AP_SerialManager.h>
 
 const AP_HAL::HAL& hal = AP_HAL::get_HAL();
 
@@ -32,11 +31,11 @@ static AP_BoardConfig board_config;
 
 class DummyVehicle {
 public:
-    AP_AHRS ahrs;  // Need since https://github.com/ArduPilot/ardupilot/pull/10890
+    AP_AHRS_DCM ahrs;  // Need since https://github.com/ArduPilot/ardupilot/pull/10890
     AP_Baro baro; // Compass tries to set magnetic model based on location.
-#if AP_COMPASS_EXTERNALAHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
     AP_ExternalAHRS eAHRS;
-#endif  // AP_COMPASS_EXTERNALAHRS_ENABLED
+#endif // HAL_EXTERNAL_AHRS_ENABLED
 };
 
 static DummyVehicle vehicle;
@@ -59,7 +58,7 @@ static void setup()
     // set offsets to account for surrounding interference
     compass.set_and_save_offsets(0, Vector3f(0, 0, 0));
     // set local difference between magnetic north and true north
-    compass.set_declination(radians(0.0f));
+    compass.set_declination(ToRad(0.0f));
 
     hal.scheduler->delay(1000);
     timer = AP_HAL::micros();
@@ -113,7 +112,7 @@ static void loop()
 
             // display all to user
             hal.console->printf("Heading: %.2f (%3d, %3d, %3d)",
-                                (double)degrees(heading),
+                                (double)ToDeg(heading),
                                 (int)mag.x,
                                 (int)mag.y,
                                 (int)mag.z);

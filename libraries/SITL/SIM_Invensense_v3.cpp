@@ -4,9 +4,10 @@
 
 void SITL::InvensenseV3::update(const class Aircraft &aircraft)
 {
-    ASSERT_STORAGE_SIZE(FIFOData, 16);
+    assert_storage_size<FIFOData, 16> _assert_fifo_size;
+    (void)_assert_fifo_size;
 
-    const SIM *sitl = AP::sitl();
+    const SITL *sitl = AP::sitl();
     const int16_t xAccel = sitl->state.xAccel / accel_scale();
     const int16_t yAccel = sitl->state.yAccel / accel_scale();
     const int16_t zAccel = sitl->state.zAccel / accel_scale();
@@ -102,16 +103,14 @@ int SITL::InvensenseV3::rdwr_fifo(I2C::i2c_rdwr_ioctl_data *&data)
     return -1;
 }
 
-void SITL::InvensenseV3::add_fifo(const char *name, uint8_t reg, I2CRegisters::RegMode mode)
+void SITL::InvensenseV3::add_fifo(const char *name, uint8_t reg, int8_t mode)
 {
     // ::fprintf(stderr, "Adding fifo %u (0x%02x) (%s)\n", reg, reg, name);
     fifoname[reg] = name;
-    if (mode == I2CRegisters::RegMode::RDONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_RDONLY || mode == O_RDWR) {
         readable_fifos.set((uint8_t)reg);
     }
-    if (mode == I2CRegisters::RegMode::WRONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_WRONLY || mode == O_RDWR) {
         writable_fifos.set((uint8_t)reg);
     }
 
@@ -156,7 +155,7 @@ bool SITL::InvensenseV3::write_to_fifo(uint8_t fifo, uint8_t *value, uint8_t val
 
 
 
-void SITL::InvensenseV3::add_block(const char *name, uint8_t addr, uint8_t len, I2CRegisters::RegMode mode)
+void SITL::InvensenseV3::add_block(const char *name, uint8_t addr, uint8_t len, int8_t mode)
 {
     // ::fprintf(stderr, "Adding block %u (0x%02x) (%s)\n", addr, addr, name);
     blockname[addr] = name;
@@ -165,12 +164,10 @@ void SITL::InvensenseV3::add_block(const char *name, uint8_t addr, uint8_t len, 
     if (block_values[addr] == nullptr) {
         AP_HAL::panic("Allocation failed for block (len=%u)", len);
     }
-    if (mode == I2CRegisters::RegMode::RDONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_RDONLY || mode == O_RDWR) {
         readable_blocks.set((uint8_t)addr);
     }
-    if (mode == I2CRegisters::RegMode::WRONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_WRONLY || mode == O_RDWR) {
         writable_blocks.set((uint8_t)addr);
     }
 }

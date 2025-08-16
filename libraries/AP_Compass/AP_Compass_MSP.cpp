@@ -13,11 +13,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <AP_HAL/AP_HAL.h>
 #include "AP_Compass_MSP.h"
 
-#if AP_COMPASS_MSP_ENABLED
-
-#include <AP_HAL/AP_HAL.h>
+#if HAL_MSP_COMPASS_ENABLED
 
 AP_Compass_MSP::AP_Compass_MSP(uint8_t _msp_instance)
 {
@@ -44,5 +43,5 @@ void AP_Compass_MSP::read(void)
     drain_accumulated_samples(instance);
 }
 
-#endif // AP_COMPASS_MSP_ENABLED
+#endif // HAL_MSP_COMPASS_ENABLED
 

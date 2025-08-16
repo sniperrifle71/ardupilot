@@ -18,11 +18,9 @@
   backend driver for airspeed from I2C
  */
 
-#include "AP_Airspeed_config.h"
-
-#if AP_AIRSPEED_MS5525_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
+#include <AP_Param/AP_Param.h>
+#include <AP_HAL/utility/OwnPtr.h>
 #include <AP_HAL/I2CDevice.h>
 #include <utility>
 
@@ -38,10 +36,8 @@ public:
     };
 
     AP_Airspeed_MS5525(AP_Airspeed &frontend, uint8_t _instance, MS5525_ADDR address);
-    ~AP_Airspeed_MS5525(void) {
-        delete dev;
-    }
-
+    ~AP_Airspeed_MS5525(void) {}
+    
     // probe and initialise the sensor
     bool init() override;
 
@@ -77,8 +73,6 @@ private:
     bool ignore_next;
     uint8_t cmd_sent;
     MS5525_ADDR _address;
-
-    AP_HAL::I2CDevice *dev;
+    
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev;
 };
-
-#endif  // AP_AIRSPEED_MS5525_ENABLED

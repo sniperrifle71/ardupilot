@@ -25,11 +25,9 @@
   based on AP_ADSB,  Tom Pittenger, November 2015
 */
 
-#include "AP_Avoidance_config.h"
-
-#if AP_ADSB_AVOIDANCE_ENABLED
-
 #include <AP_ADSB/AP_ADSB.h>
+
+#if HAL_ADSB_ENABLED
 
 #define AP_AVOIDANCE_STATE_RECOVERY_TIME_MS                 2000    // we will not downgrade state any faster than this (2 seconds)
 
@@ -42,7 +40,8 @@ public:
     AP_Avoidance(class AP_ADSB &adsb);
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_Avoidance);
+    AP_Avoidance(const AP_Avoidance &other) = delete;
+    AP_Avoidance &operator=(const AP_Avoidance&) = delete;
 
     // get singleton instance
     static AP_Avoidance *get_singleton() {
@@ -96,8 +95,8 @@ public:
     void update();
 
     // enable or disable avoidance
-    void enable() { _enabled.set(true); };
-    void disable() { _enabled.set(false); };
+    void enable() { _enabled = true; };
+    void disable() { _enabled = false; };
 
     // current overall threat level
     MAV_COLLISION_THREAT_LEVEL current_threat_level() const;
@@ -233,4 +232,5 @@ namespace AP {
     AP_Avoidance *ap_avoidance();
 };
 
-#endif  // AP_ADSB_AVOIDANCE_ENABLED
+#endif
+

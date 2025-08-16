@@ -1,3 +1,4 @@
+#include "mode.h"
 #include "Rover.h"
 
 void ModeSteering::update()

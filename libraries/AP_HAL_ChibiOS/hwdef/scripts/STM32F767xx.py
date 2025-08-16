@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 '''
 these tables are generated from the STM32 datasheet DM00273119.pdf for the
 STM32F765xx, STM32F767xx, STM32F768aX and STM32F769xx
@@ -46,8 +44,7 @@ mcu = {
     'CPU_FLAGS' : '-mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard',
 
     'DEFINES' : {
-        'HAL_HAVE_HARDWARE_DOUBLE' : '1',
-        'STM32F7' : '1',
+        'HAL_HAVE_HARDWARE_DOUBLE' : '1'
     }
 }
 

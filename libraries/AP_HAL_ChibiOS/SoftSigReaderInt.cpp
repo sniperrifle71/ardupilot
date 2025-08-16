@@ -14,7 +14,6 @@
  *
  */
 
-#include <hal.h>
 #include "SoftSigReaderInt.h"
 #include "hwdef/common/stm32_util.h"
 

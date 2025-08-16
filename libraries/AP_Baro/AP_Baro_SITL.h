@@ -2,11 +2,9 @@
 
 #include "AP_Baro_Backend.h"
 
-#if AP_SIM_BARO_ENABLED
-
-#include <AP_Math/vectorN.h>
-
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <SITL/SITL.h>
+#include <AP_Math/vectorN.h>
 
 class AP_Baro_SITL : public AP_Baro_Backend {
 public:
@@ -14,19 +12,13 @@ public:
 
     void update() override;
 
-    // adjust for simulated board temperature
-    static void temperature_adjustment(float &p, float &T);
-
-    // adjust for wind effects
-    static float wind_pressure_correction(uint8_t instance);
-
 protected:
 
     void update_healthy_flag(uint8_t instance) override { _frontend.sensors[instance].healthy = healthy(instance); };
 
 private:
     uint8_t _instance;
-    SITL::SIM *_sitl;
+    SITL::SITL *_sitl;
 
     // barometer delay buffer variables
     struct readings_baro {
@@ -38,6 +30,12 @@ private:
     static const uint8_t _buffer_length = 50;
     VectorN<readings_baro, _buffer_length> _buffer;
 
+    // adjust for simulated board temperature
+    void temperature_adjustment(float &p, float &T);
+
+    // adjust for wind effects
+    float wind_pressure_correction(void);
+
     // is the barometer usable for flight 
     bool healthy(uint8_t instance);
     
@@ -48,7 +46,5 @@ private:
     float _recent_press;
     float _last_altitude;
 
-    uint32_t last_drift_delta_t_ms;  // allows for integration of drift over time
-    float total_alt_drift;  // integrated altitude drift in metres
 };
-#endif  // AP_SIM_BARO_ENABLED
+#endif  // CONFIG_HAL_BOARD

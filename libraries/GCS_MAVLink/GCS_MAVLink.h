@@ -3,7 +3,6 @@
 #pragma once
 
 #include <AP_HAL/AP_HAL_Boards.h>
-#include <AP_Networking/AP_Networking_Config.h>
 
 // we have separate helpers disabled to make it possible
 // to select MAVLink 1.0 in the arduino GUI build
@@ -12,19 +11,17 @@
 
 #define MAVLINK_SEND_UART_BYTES(chan, buf, len) comm_send_buffer(chan, buf, len)
 
-#define MAVLINK_START_UART_SEND(chan, size) comm_send_lock(chan, size)
+#define MAVLINK_START_UART_SEND(chan, size) comm_send_lock(chan)
 #define MAVLINK_END_UART_SEND(chan, size) comm_send_unlock(chan)
 
-#if HAL_PROGRAM_SIZE_LIMIT_KB > 1024
-// allow 8 telemetry ports, allowing for extra networking or CAN ports
-#define MAVLINK_COMM_NUM_BUFFERS 8
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+// allow extra mavlink channels in SITL for:
+//    Vicon, ship
+#define MAVLINK_COMM_NUM_BUFFERS 7
 #else
 // allow five telemetry ports
 #define MAVLINK_COMM_NUM_BUFFERS 5
 #endif
-
-#define MAVLINK_GET_CHANNEL_BUFFER 1
-#define MAVLINK_GET_CHANNEL_STATUS 1
 
 /*
   The MAVLink protocol code generator does its own alignment, so
@@ -37,13 +34,13 @@
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #endif
 
-#include "include/mavlink/v2.0/all/version.h"
+#include "include/mavlink/v2.0/ardupilotmega/version.h"
 
 #define MAVLINK_MAX_PAYLOAD_LEN 255
 
 #include "include/mavlink/v2.0/mavlink_types.h"
 
-/// MAVLink streams used for each telemetry port
+/// MAVLink stream used for uartA
 extern AP_HAL::UARTDriver	*mavlink_comm_port[MAVLINK_COMM_NUM_BUFFERS];
 extern bool gcs_alternative_active[MAVLINK_COMM_NUM_BUFFERS];
 
@@ -55,11 +52,11 @@ extern mavlink_system_t mavlink_system;
 /// @param chan		Channel to send to
 static inline bool valid_channel(mavlink_channel_t chan)
 {
-    return static_cast<int>(chan) < MAVLINK_COMM_NUM_BUFFERS;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
+    return chan < MAVLINK_COMM_NUM_BUFFERS;
+#pragma clang diagnostic pop
 }
-
-mavlink_message_t* mavlink_get_channel_buffer(uint8_t chan);
-mavlink_status_t* mavlink_get_channel_status(uint8_t chan);
 
 void comm_send_buffer(mavlink_channel_t chan, const uint8_t *buf, uint8_t len);
 
@@ -70,18 +67,10 @@ void comm_send_buffer(mavlink_channel_t chan, const uint8_t *buf, uint8_t len);
 uint16_t comm_get_txspace(mavlink_channel_t chan);
 
 #define MAVLINK_USE_CONVENIENCE_FUNCTIONS
-
-#pragma GCC diagnostic push
-// mavlink relies on strncpy() supporting deliberate truncation
-#if !defined(__clang__)  // avoid -Wunknown-warning-option
-#pragma GCC diagnostic ignored "-Wstringop-truncation"
-#endif  // clang
-#include "include/mavlink/v2.0/all/mavlink.h"
-#pragma GCC diagnostic pop
+#include "include/mavlink/v2.0/ardupilotmega/mavlink.h"
 
 // lock and unlock a channel, for multi-threaded mavlink send
-void comm_send_lock(mavlink_channel_t chan, uint16_t size);
+void comm_send_lock(mavlink_channel_t chan);
 void comm_send_unlock(mavlink_channel_t chan);
-HAL_Semaphore &comm_chan_lock(mavlink_channel_t chan);
 
 #pragma GCC diagnostic pop

@@ -53,11 +53,11 @@ void Rover::ekf_check()
                 ekf_check_state.fail_count = EKF_CHECK_ITERATIONS_MAX;
                 ekf_check_state.bad_variance = true;
 
-                LOGGER_WRITE_ERROR(LogErrorSubsystem::EKFCHECK,
+                AP::logger().Write_Error(LogErrorSubsystem::EKFCHECK,
                                          LogErrorCode::EKFCHECK_BAD_VARIANCE);
                 // send message to gcs
                 if ((AP_HAL::millis() - ekf_check_state.last_warn_time) > EKF_CHECK_WARNING_TIME) {
-                    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL,"EKF variance");
+                    gcs().send_text(MAV_SEVERITY_CRITICAL,"EKF variance");
                     ekf_check_state.last_warn_time = AP_HAL::millis();
                 }
                 failsafe_ekf_event();
@@ -71,7 +71,7 @@ void Rover::ekf_check()
             // if variance is flagged as bad and the counter reaches zero then clear flag
             if (ekf_check_state.bad_variance && ekf_check_state.fail_count == 0) {
                 ekf_check_state.bad_variance = false;
-                LOGGER_WRITE_ERROR(LogErrorSubsystem::EKFCHECK,
+                AP::logger().Write_Error(LogErrorSubsystem::EKFCHECK,
                                          LogErrorCode::EKFCHECK_VARIANCE_CLEARED);
                 // clear failsafe
                 failsafe_ekf_off_event();
@@ -108,16 +108,6 @@ bool Rover::ekf_over_threshold()
         over_thresh_count++;
     }
 
-    bool optflow_healthy = false;
-#if AP_OPTICALFLOW_ENABLED
-    optflow_healthy = optflow.healthy();
-#endif
-    if (!optflow_healthy && (vel_variance >= (2.0f * g.fs_ekf_thresh))) {
-        over_thresh_count += 2;
-    } else if (vel_variance >= g.fs_ekf_thresh) {
-        over_thresh_count++;
-    }
-    
     if (over_thresh_count >= 2) {
         return true;
     }
@@ -156,7 +146,7 @@ void Rover::failsafe_ekf_event()
 
     // EKF failsafe event has occurred
     failsafe.ekf = true;
-    LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_EKFINAV,
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_EKFINAV,
                              LogErrorCode::FAILSAFE_OCCURRED);
 
     // does this mode require position?
@@ -177,7 +167,7 @@ void Rover::failsafe_ekf_event()
             break;
     }
 
-    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL,"EKF failsafe");
+    gcs().send_text(MAV_SEVERITY_CRITICAL,"EKF failsafe");
 }
 
 // failsafe_ekf_off_event - actions to take when EKF failsafe is cleared
@@ -189,7 +179,7 @@ void Rover::failsafe_ekf_off_event(void)
     }
 
     failsafe.ekf = false;
-    LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_EKFINAV,
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_EKFINAV,
                              LogErrorCode::FAILSAFE_RESOLVED);
-    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL,"EKF failsafe cleared");
+    gcs().send_text(MAV_SEVERITY_CRITICAL,"EKF failsafe cleared");
 }

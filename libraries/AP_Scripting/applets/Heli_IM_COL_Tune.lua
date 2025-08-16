@@ -81,7 +81,8 @@ end
 
 -- Get parameter value and perform checks to ensure successful
 function get_im_val(param_name,disp)
-    local value = param:get(param_name)
+    local value = -1
+    value = param:get(param_name)
 
     if value >= 0 then
         if disp then

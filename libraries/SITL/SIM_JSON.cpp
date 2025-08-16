@@ -16,10 +16,6 @@
     Simulator Connector for JSON based interfaces
 */
 
-#include "SIM_config.h"
-
-#if AP_SIM_JSON_ENABLED
-
 #include "SIM_JSON.h"
 
 #include <stdio.h>
@@ -29,12 +25,8 @@
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_HAL/utility/replace.h>
-#include <SRV_Channel/SRV_Channel.h>
-#include <AP_Filesystem/AP_Filesystem.h>
 
 #define UDP_TIMEOUT_MS 100
-
-#define SITL_JSON_DEBUG 0
 
 extern const AP_HAL::HAL& hal;
 
@@ -106,34 +98,20 @@ void JSON::set_interface_ports(const char* address, const int port_in, const int
 */
 void JSON::output_servos(const struct sitl_input &input)
 {
-    size_t pkt_size = 0;
-    ssize_t send_ret = -1;
-    if (SRV_Channels::have_32_channels()) {
-      servo_packet_32 pkt;
-      pkt.frame_rate = rate_hz;
-      pkt.frame_count = frame_counter;
-      for (uint8_t i=0; i<32; i++) {
-          pkt.pwm[i] = input.servos[i];
-      }
-      pkt_size = sizeof(pkt);
-      send_ret = sock.sendto(&pkt, pkt_size, target_ip, control_port);
-    } else {
-      servo_packet_16 pkt;
-      pkt.frame_rate = rate_hz;
-      pkt.frame_count = frame_counter;
-      for (uint8_t i=0; i<16; i++) {
-          pkt.pwm[i] = input.servos[i];
-      }
-      pkt_size = sizeof(pkt);
-      send_ret = sock.sendto(&pkt, pkt_size, target_ip, control_port);
+    servo_packet pkt;
+    pkt.frame_rate = rate_hz;
+    pkt.frame_count = frame_counter;
+    for (uint8_t i=0; i<16; i++) {
+        pkt.pwm[i] = input.servos[i];
     }
 
-    if ((size_t)send_ret != pkt_size) {
+    size_t send_ret = sock.sendto(&pkt, sizeof(pkt), target_ip, control_port);
+    if (send_ret != sizeof(pkt)) {
         if (send_ret <= 0) {
             printf("Unable to send servo output to %s:%u - Error: %s, Return value: %ld\n",
                    target_ip, control_port, strerror(errno), (long)send_ret);
         } else {
-            printf("Sent %ld bytes instead of %lu bytes\n", (long)send_ret, (unsigned long)pkt_size);
+            printf("Sent %ld bytes instead of %lu bytes\n", (long)send_ret, (unsigned long)sizeof(pkt));
         }
     }
 }
@@ -146,25 +124,9 @@ void JSON::output_servos(const struct sitl_input &input)
     This parser does not do any syntax checking, and is not at all
     general purpose
 */
-uint32_t JSON::parse_sensors(const char *json)
+uint16_t JSON::parse_sensors(const char *json)
 {
-    uint32_t received_bitmask = 0;
-
-#if SITL_JSON_DEBUG && AP_FILESYSTEM_FILE_WRITING_ENABLED
-    // it is useful in some environments to be able to get a copy of the raw
-    // JSON data
-    const uint32_t now_ms = AP_HAL::millis();
-    if (now_ms - last_debug_ms >= 1000) {
-        // dump received JSON at 1Hz for easy debugging
-        last_debug_ms = now_ms;
-        auto &fs = AP::FS();
-        int fd = fs.open("json_debug.txt", O_WRONLY|O_CREAT|O_TRUNC);
-        if (fd != -1) {
-            fs.write(fd, json, strlen(json));
-            fs.close(fd);
-        }
-    }
-#endif
+    uint16_t received_bitmask = 0;
 
     //printf("%s\n", json);
     for (uint16_t i=0; i<ARRAY_SIZE(keytable); i++) {
@@ -241,18 +203,6 @@ uint32_t JSON::parse_sensors(const char *json)
                 break;
             }
 
-            case BOOLEAN: {
-                bool *b = (bool *)key.ptr;
-                if (strncasecmp(p, "true", 4) == 0) {
-                    *b = true;
-                } else if (strncasecmp(p, "false", 5) == 0) {
-                    *b = false;
-                } else {
-                    *b = strtoull(p, nullptr, 10) != 0;
-                }
-                //printf("%s/%s = %i\n", key.section, key.key, *((unit8_t *)key.ptr));
-                break;
-            }
         }
     }
 
@@ -296,9 +246,9 @@ void JSON::recv_fdm(const struct sitl_input &input)
         return;
     }
 
-    const uint32_t received_bitmask = parse_sensors((const char *)(p1+1));
+    const uint16_t received_bitmask = parse_sensors((const char *)(p1+1));
     if (received_bitmask == 0) {
-        // did not receive one of the mandatory fields
+        // did not receve one of the mandatory fields
         printf("Did not contain all mandatory fields\n");
         return;
     }
@@ -336,18 +286,6 @@ void JSON::recv_fdm(const struct sitl_input &input)
     position = state.position;
     position.xy() += origin.get_distance_NE_double(home);
 
-    if (received_bitmask & TIME_SYNC) {
-        if (use_time_sync != !state.no_time_sync) {
-            use_time_sync = !state.no_time_sync;
-            printf("Forcing use_time_sync=%d\n", int(use_time_sync));
-            if (!use_time_sync) {
-                // if not using time sync then default EKF type to 10, as
-                // otherwise EKF is likely to diverge
-                AP_Param::set_default_by_name("AHRS_EKF_TYPE", 10);
-            }
-        }
-    }
-
     // deal with euler or quaternion attitude
     if ((received_bitmask & QUAT_ATT) != 0) {
         // if we have a quaternion attitude use it rather than euler
@@ -362,22 +300,14 @@ void JSON::recv_fdm(const struct sitl_input &input)
 
         airspeed_pitot = state.airspeed;
     } else {
-        
-        // wind is not supported yet for JSON sim, assume zero for now        
-        wind_ef.zero(); 
-
-        // velocity relative to airmass in Earth's frame
-        velocity_air_ef = velocity_ef - wind_ef;
-
         // velocity relative to airmass in body frame
-        velocity_air_bf = dcm.transposed() * velocity_air_ef;
+        velocity_air_bf = dcm.transposed() * velocity_ef;
 
-        // airspeed fix for eas2tas
-        update_eas_airspeed();
-    }
+        // airspeed
+        airspeed = velocity_air_bf.length();
 
-    if ((received_bitmask & WIND_VEL) != 0) {
-        wind_ef = state.velocity_wind;
+        // airspeed as seen by a fwd pitot tube (limited to 120m/s)
+        airspeed_pitot = constrain_float(velocity_air_bf * Vector3f(1.0f, 0.0f, 0.0f), 0.0f, 120.0f);
     }
 
     // Convert from a meters from origin physics to a lat long alt
@@ -399,25 +329,6 @@ void JSON::recv_fdm(const struct sitl_input &input)
         wind_vane_apparent.speed = state.wind_vane_apparent.speed;
     }
 
-    // update RC input
-    static_assert(ARRAY_SIZE(state.rc) <= ARRAY_SIZE(rcin), "JSON rc in size mismatch");
-    uint8_t rc_chan_count = 0;
-    for (uint8_t i=0; i<ARRAY_SIZE(state.rc); i++) {
-        if ((received_bitmask & (RC_1 << i)) != 0) {
-            rcin[i] = (state.rc[i] - 1000.0f) / 1000.0f;
-            rc_chan_count = i+1;
-        }
-    }
-    rcin_chan_count = rc_chan_count;
-
-    // update battery state
-    if ((received_bitmask & BAT_VOLT) != 0) {
-        battery_voltage = state.bat_volt; 
-    }
-    if ((received_bitmask & BAT_AMP) != 0) {
-        battery_current = state.bat_amp; 
-    }
-
     double deltat;
     if (state.timestamp_s < last_timestamp_s) {
         // Physics time has gone backwards, don't reset AP
@@ -431,9 +342,8 @@ void JSON::recv_fdm(const struct sitl_input &input)
 
     if (is_positive(deltat) && deltat < 0.1) {
         // time in us to hz
-        if (use_time_sync) {
-            adjust_frame_time(1.0 / deltat);
-        }
+        adjust_frame_time(1.0 / deltat);
+
         // match actual frame rate with desired speedup
         time_advance();
     }
@@ -461,7 +371,7 @@ void JSON::recv_fdm(const struct sitl_input &input)
 // @Field: GX: Simulated gyroscope, X-axis (rad/sec)
 // @Field: GY: Simulated gyroscope, Y-axis (rad/sec)
 // @Field: GZ: Simulated gyroscope, Z-axis (rad/sec)
-    AP::logger().WriteStreaming("JSN1", "TimeUS,TStamp,R,P,Y,GX,GY,GZ",
+    AP::logger().Write("JSN1", "TimeUS,TStamp,R,P,Y,GX,GY,GZ",
                        "ssrrrEEE",
                        "F???????",
                        "Qfffffff",
@@ -488,7 +398,7 @@ void JSON::recv_fdm(const struct sitl_input &input)
 // @Field: AN: simulation's acceleration, North (m/s^2)
 // @Field: AE: simulation's acceleration, East (m/s^2)
 // @Field: AD: simulation's acceleration, Down (m/s^2)
-    AP::logger().WriteStreaming("JSN2", "TimeUS,VN,VE,VD,AX,AY,AZ,AN,AE,AD",
+    AP::logger().Write("JSN2", "TimeUS,VN,VE,VD,AX,AY,AZ,AN,AE,AD",
                        "snnnoooooo",
                        "F?????????",
                        "Qfffffffff",
@@ -522,16 +432,12 @@ void JSON::update(const struct sitl_input &input)
     update_mag_field_bf();
 
     // allow for changes in physics step
-    if (use_time_sync) {
-        adjust_frame_time(constrain_float(sitl->loop_rate_hz, rate_hz-1, rate_hz+1));
-    }
+    adjust_frame_time(constrain_float(sitl->loop_rate_hz, rate_hz-1, rate_hz+1));
 
 #if 0
     // report frame rate
     if (frame_counter % 1000 == 0) {
-        printf("FPS %.2f\n", rate_hz); // this is instantaneous rather than any clever average
+        printf("FPS %.2f\n", achieved_rate_hz); // this is instantaneous rather than any clever average
     }
 #endif
 }
-
-#endif  // AP_SIM_JSON_ENABLED

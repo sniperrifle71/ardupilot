@@ -12,8 +12,8 @@
 class AP_Motors6DOF : public AP_MotorsMatrix {
 public:
 
-    AP_Motors6DOF(uint16_t speed_hz = AP_MOTORS_SPEED_DEFAULT) :
-        AP_MotorsMatrix(speed_hz) {
+    AP_Motors6DOF(uint16_t loop_rate, uint16_t speed_hz = AP_MOTORS_SPEED_DEFAULT) :
+        AP_MotorsMatrix(loop_rate, speed_hz) {
         AP_Param::setup_object_defaults(this, var_info);
     };
 
@@ -29,6 +29,8 @@ public:
         SUB_FRAME_CUSTOM
     } sub_frame_t;
 
+    const char* get_frame_string() const override { return _frame_class_string; };
+
     // Override parent
     void setup_motors(motor_frame_class frame_class, motor_frame_type frame_type) override;
 
@@ -40,8 +42,6 @@ public:
 
     // output_to_motors - sends minimum values out to the motors
     void output_to_motors() override;
-
-    void set_max_throttle(float max_throttle) { _max_throttle = max_throttle; }
 
     // returns a vector with roll, pitch, and yaw contributions
     Vector3f get_motor_angular_factors(int motor_number);
@@ -72,7 +72,6 @@ protected:
     float               _forward_factor[AP_MOTORS_MAX_NUM_MOTORS]; // each motors contribution to forward/backward
     float               _lateral_factor[AP_MOTORS_MAX_NUM_MOTORS];  // each motors contribution to lateral (left/right)
 
-    float _max_throttle = 1.0f;
     // current limiting
     float _output_limited = 1.0f;
     float _batt_current_last = 0.0f;

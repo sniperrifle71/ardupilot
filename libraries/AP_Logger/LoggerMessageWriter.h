@@ -1,14 +1,13 @@
 #pragma once
 
 #include "AP_Logger_Backend.h"
-#include <AP_Rally/AP_Rally.h>
 
 class LoggerMessageWriter {
 public:
 
     virtual void reset() = 0;
     virtual void process() = 0;
-    bool finished() const { return _finished; }
+    virtual bool finished() { return _finished; }
 
     virtual void set_logger_backend(class AP_Logger_Backend *backend) {
         _logger_backend = backend;
@@ -32,11 +31,9 @@ private:
     enum class Stage : uint8_t {
         FIRMWARE_STRING = 0,
         GIT_VERSIONS,
-        VER,  // i.e. the "VER" message
         SYSTEM_ID,
         PARAM_SPACE_USED,
-        RC_PROTOCOL,
-        RC_OUTPUT,
+        RC_PROTOCOL
     };
     Stage stage;
 };
@@ -48,7 +45,7 @@ public:
     void process() override;
 
 private:
-    enum class Stage {
+    enum Stage {
         WRITE_NEW_MISSION_MESSAGE = 0,
         WRITE_MISSION_ITEMS,
         DONE
@@ -65,7 +62,7 @@ public:
     void process() override;
 
 private:
-    enum class Stage {
+    enum Stage {
         WRITE_NEW_RALLY_MESSAGE = 0,
         WRITE_ALL_RALLY_POINTS,
         DONE
@@ -75,56 +72,31 @@ private:
     Stage stage = Stage::WRITE_NEW_RALLY_MESSAGE;
 };
 
-#if HAL_LOGGER_FENCE_ENABLED
-class LoggerMessageWriter_Write_Polyfence : public LoggerMessageWriter {
-public:
-
-    void reset() override;
-    void process() override;
-
-private:
-    enum class Stage {
-        WRITE_NEW_FENCE_MESSAGE = 0,
-        WRITE_FENCE_ITEMS,
-        DONE
-    };
-
-    uint16_t _fence_number_to_send;
-    Stage stage;
-};
-#endif // HAL_LOGGER_FENCE_ENABLED
-
 class LoggerMessageWriter_DFLogStart : public LoggerMessageWriter {
 public:
     LoggerMessageWriter_DFLogStart() :
         _writesysinfo()
-#if AP_MISSION_ENABLED
+#if HAL_MISSION_ENABLED
         , _writeentiremission()
 #endif
 #if HAL_RALLY_ENABLED
         , _writeallrallypoints()
 #endif
-#if HAL_LOGGER_FENCE_ENABLED
-        , _writeallpolyfence()
-#endif
         {
         }
 
-    void set_logger_backend(class AP_Logger_Backend *backend) override final {
+    virtual void set_logger_backend(class AP_Logger_Backend *backend) override {
         LoggerMessageWriter::set_logger_backend(backend);
         _writesysinfo.set_logger_backend(backend);
-#if AP_MISSION_ENABLED
+#if HAL_MISSION_ENABLED
         _writeentiremission.set_logger_backend(backend);
 #endif
 #if HAL_RALLY_ENABLED
         _writeallrallypoints.set_logger_backend(backend);
 #endif
-#if HAL_LOGGER_FENCE_ENABLED
-        _writeallpolyfence.set_logger_backend(backend);
-#endif
     }
 
-    bool out_of_time_for_writing_messages_df() const;
+    bool out_of_time_for_writing_messages() const;
 
     void reset() override;
     void process() override;
@@ -133,22 +105,16 @@ public:
 
     // reset some writers so we push stuff out to logs again.  Will
     // only work if we are in state DONE!
-#if AP_MISSION_ENABLED
+#if HAL_MISSION_ENABLED
     bool writeentiremission();
 #endif
 #if HAL_RALLY_ENABLED
     bool writeallrallypoints();
 #endif
-#if HAL_LOGGER_FENCE_ENABLED
-    bool writeallfence();
-#endif
 
 private:
 
-    // check for using too much time
-    static bool check_process_limit(uint32_t start_us);
-
-    enum class Stage {
+    enum Stage {
         FORMATS = 0,
         UNITS,
         MULTIPLIERS,
@@ -172,18 +138,14 @@ private:
 
     AP_Param::ParamToken token;
     AP_Param *ap;
-    float param_default;
     enum ap_var_type type;
 
 
     LoggerMessageWriter_WriteSysInfo _writesysinfo;
-#if AP_MISSION_ENABLED
+#if HAL_MISSION_ENABLED
     LoggerMessageWriter_WriteEntireMission _writeentiremission;
 #endif
 #if HAL_RALLY_ENABLED
     LoggerMessageWriter_WriteAllRallyPoints _writeallrallypoints;
-#endif
-#if HAL_LOGGER_FENCE_ENABLED
-    LoggerMessageWriter_Write_Polyfence _writeallpolyfence;
 #endif
 };

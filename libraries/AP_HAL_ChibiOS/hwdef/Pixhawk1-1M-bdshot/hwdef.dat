@@ -22,7 +22,7 @@ IMU LSM9DS0 SPI:lsm9ds0_g SPI:lsm9ds0_am ROTATION_ROLL_180 ROTATION_ROLL_180_YAW
 
 # define the barometers to probe with BARO lines. These follow the
 # same format as IMU lines
-BARO MS5611 SPI:ms5611
+BARO MS56XX SPI:ms5611
 
 # probe for two mags.
 # note that the number of arguments and meanings for compass driver
@@ -36,8 +36,5 @@ COMPASS LSM303D SPI:lsm9ds0_am ROTATION_NONE
 define HAL_PROBE_EXTERNAL_I2C_COMPASSES
 
 FLASH_SIZE_KB 1024
-include ../include/minimize_features.inc
+define HAL_MINIMIZE_FEATURES 1
 undef STORAGE_FLASH_PAGE
-
-# bootloader embedding / bootloader flashing not available
-define AP_BOOTLOADER_FLASHING_ENABLED 0

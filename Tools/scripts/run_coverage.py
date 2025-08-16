@@ -24,7 +24,7 @@ root_dir = os.path.realpath(os.path.join(tools_dir, '../..'))
 class CoverageRunner(object):
     """Coverage Runner Class."""
 
-    def __init__(self, verbose=False, check_tests=True) -> None:
+    def __init__(self, verbose=False):
         """Set the files Path."""
         self.REPORT_DIR = os.path.join(root_dir, "reports/lcov-report")
         self.INFO_FILE = os.path.join(root_dir, self.REPORT_DIR, "lcov.info")
@@ -34,16 +34,15 @@ class CoverageRunner(object):
 
         self.autotest = os.path.join(root_dir, "Tools/autotest/autotest.py")
         self.verbose = verbose
-        self.check_tests = check_tests
         self.start_time = time.time()
 
-    def progress(self, text) -> None:
+    def progress(self, text):
         """Pretty printer."""
         delta_time = time.time() - self.start_time
         formatted_text = "****** AT-%06.1f: %s" % (delta_time, text)
         print(formatted_text)
 
-    def init_coverage(self, use_example=False) -> None:
+    def init_coverage(self, use_example=False):
         """Initialize ArduPilot for coverage.
 
         This needs to be run with the binaries built.
@@ -64,7 +63,6 @@ class CoverageRunner(object):
         binaries_dir = os.path.join(root_dir, 'build/sitl/bin')
         dirs_to_check = [["binaries", binaries_dir], ["tests", os.path.join(root_dir, 'build/linux/tests')]]
         if use_example:
-            self.progress("Adding examples")
             dirs_to_check.append(["examples", os.path.join(root_dir, 'build/linux/examples')])
         for dirc in dirs_to_check:
             if not (self.check_build(dirc[0], dirc[1])):
@@ -83,6 +81,7 @@ class CoverageRunner(object):
                                      "--no-external",
                                      "--initial",
                                      "--capture",
+                                     "--exclude", root_dir + "/modules/uavcan/*",
                                      "--exclude", root_dir + "/build/sitl/modules/*",
                                      "--directory", root_dir,
                                      "-o", self.INFO_FILE_BASE,
@@ -99,7 +98,7 @@ class CoverageRunner(object):
             exit(1)
         self.progress("Initialization done")
 
-    def check_build(self, name, path) -> bool:
+    def check_build(self, name, path):
         """Check that build directory is not empty and that binaries are built with the coverage flags."""
         self.progress("Checking that %s are set up and built" % name)
         if os.path.exists(path):
@@ -112,10 +111,10 @@ class CoverageRunner(object):
             for line in searchfile:
                 if "-ftest-coverage" in line:
                     return True
-            self.progress("%s wasn't built with coverage support" % name)
+            self.progress("%s was't built with coverage support" % name)
             return False
 
-    def run_build(self, use_example=False) -> None:
+    def run_build(self, use_example=False):
         """Clean the build directory and build binaries for coverage."""
 
         os.chdir(root_dir)
@@ -128,7 +127,6 @@ class CoverageRunner(object):
 
         try:
             if use_example:
-                self.progress("Building examples")
                 subprocess.run([waf_light, "configure", "--board=linux", "--debug", "--coverage"], check=True)
                 subprocess.run([waf_light, "examples"], check=True)
             subprocess.run(
@@ -146,7 +144,7 @@ class CoverageRunner(object):
             exit(1)
         self.progress("Build examples and vehicle binaries done !")
 
-    def run_full(self, use_example=False) -> None:
+    def run_full(self, use_example=False):
         """Run full coverage on maximum of ArduPilot binaries and test functions."""
         self.progress("Running full test suite...")
         self.run_build()
@@ -160,37 +158,35 @@ class CoverageRunner(object):
             subprocess.run([self.autotest,
                             "--timeout=" + str(TIMEOUT),
                             "--debug",
-                            "--coverage",
                             "--no-clean",
                             "--speedup=" + str(SPEEDUP),
-                            "run.examples"], check=self.check_tests)
+                            "run.examples"
+                            ])
         self.progress("Running run.unit_tests")
         subprocess.run(
             [self.autotest,
              "--timeout=" + str(TIMEOUT),
              "--debug",
              "--no-clean",
-             "run.unit_tests"], check=self.check_tests)
-        subprocess.run(["reset"], check=True)
+             "run.unit_tests"])
+        subprocess.run(["reset"])
         os.set_blocking(sys.stdout.fileno(), True)
         os.set_blocking(sys.stderr.fileno(), True)
-        test_list = ["Plane", "QuadPlane", "Sub", "Copter", "Helicopter", "Rover", "Tracker", "BalanceBot", "Sailboat"]
+        test_list = ["Plane", "QuadPlane", "Sub", "Copter", "Helicopter", "Rover", "Tracker"]
         for test in test_list:
             self.progress("Running test.%s" % test)
-            try:
-                subprocess.run([self.autotest,
-                                "--timeout=" + str(TIMEOUT),
-                                "--debug",
-                                "--no-clean",
-                                "test.%s" % test], check=self.check_tests)
-            except subprocess.CalledProcessError:
-                # pass in case of failing tests
-                pass
+            subprocess.run([self.autotest,
+                            "--timeout=" + str(TIMEOUT),
+                            "--debug",
+                            "--no-clean",
+                            "test.%s" % test,
+                            ])
+
         # TODO add any other execution path/s we can to maximise the actually
         # used code, can we run other tests or things?  Replay, perhaps?
         self.update_stats()
 
-    def update_stats(self) -> None:
+    def update_stats(self):
         """Update Coverage statistics only.
 
         Assumes that coverage tests have been run.
@@ -199,7 +195,7 @@ class CoverageRunner(object):
         with open(self.LCOV_LOG, 'a') as log_file:
             # we cannot use subprocess.PIPE and result.stdout to get the output as it will be too long and trigger
             # BlockingIOError: [Errno 11] write could not complete without blocking
-            # thus we output to temp file, and print the file line by line...
+            # thus we ouput to temp file, and print the file line by line...
             with tempfile.NamedTemporaryFile(mode="w+") as tmp_file:
                 try:
                     self.progress("Capturing Coverage statistics")
@@ -225,7 +221,7 @@ class CoverageRunner(object):
                         tmp_file.seek(0)
                         content = tmp_file.read().splitlines()
                         for line in content:
-                            # print(line, flush=True)  # not useful to print
+                            # print(line, flush=True)  # not usefull to print
                             log_file.write(line)
                     # remove files we do not intentionally test:
                     self.progress("Removing unwanted coverage statistics")
@@ -233,13 +229,13 @@ class CoverageRunner(object):
                                     "--remove", self.INFO_FILE,
                                     ".waf*",
                                     root_dir + "/modules/gtest/*",
-                                    root_dir + "/modules/DroneCAN/libcanard/*",
+                                    root_dir + "/modules/uavcan/*",
+                                    root_dir + "/modules/libcanard/*",
                                     root_dir + "/build/linux/libraries/*",
-                                    root_dir + "/build/linux/modules/*",
                                     root_dir + "/build/sitl/libraries/*",
                                     root_dir + "/build/sitl/modules/*",
-                                    root_dir + "/build/sitl_periph_universal/libraries/*",
-                                    root_dir + "/build/sitl_periph_universal/modules/*",
+                                    root_dir + "/build/sitl_periph_gps/libraries/*",
+                                    root_dir + "/build/sitl_periph_gps/modules/*",
                                     root_dir + "/libraries/*/examples/*",
                                     root_dir + "/libraries/*/tests/*",
                                     "-o", self.INFO_FILE
@@ -248,7 +244,7 @@ class CoverageRunner(object):
                         tmp_file.seek(0)
                         content = tmp_file.read().splitlines()
                         for line in content:
-                            # print(line, flush=True)  # not useful to print
+                            # print(line, flush=True)  # not usefull to print
                             log_file.write(line)
 
                 except subprocess.CalledProcessError as err:
@@ -284,10 +280,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Runs tests with gcov coverage support.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Output everything on terminal.')
-    parser.add_argument('-c', '--no-check-tests', action='store_true',
-                        help='Do not fail if tests do not run.')
-    parser.add_argument('--add-examples', action='store_true',
-                        help='Add examples to coverage.')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-i', '--init', action='store_true',
                        help='Initialise ArduPilot for coverage. It should be run after building the binaries.')
@@ -297,17 +289,18 @@ if __name__ == '__main__':
                        help='Clean the build directory and build binaries for coverage.')
     group.add_argument('-u', '--update', action='store_true',
                        help='Update coverage statistics. To be used after running some tests.')
+
     args = parser.parse_args()
 
-    runner = CoverageRunner(verbose=args.verbose, check_tests=not args.no_check_tests)
+    runner = CoverageRunner(verbose=args.verbose)
     if args.init:
-        runner.init_coverage(args.add_examples)
+        runner.init_coverage()
         sys.exit(0)
     if args.full:
-        runner.run_full(args.add_examples)
+        runner.run_full()
         sys.exit(0)
     if args.build:
-        runner.run_build(args.add_examples)
+        runner.run_build()
         sys.exit(0)
     if args.update:
         runner.update_stats()

@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 '''
 these tables are generated from the STM32 datasheets for the
 STM32F103x8
@@ -28,11 +26,7 @@ mcu = {
         (0x20000000, 20, 1), # main memory, DMA safe
     ],
 
-    'EXPECTED_CLOCK' : 72000000,
-
-    'DEFINES' : {
-        'STM32F1' : '1',
-    }
+    'EXPECTED_CLOCK' : 72000000
 }
 
 ADC1_map = {

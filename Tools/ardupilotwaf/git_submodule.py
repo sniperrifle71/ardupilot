@@ -1,6 +1,5 @@
+#!/usr/bin/env python
 # encoding: utf-8
-
-# flake8: noqa
 
 """
 Waf tool for defining ardupilot's submodules, so that they are kept up to date.
@@ -33,7 +32,7 @@ post_mode should be set to POST_LAZY. Example::
         ...
 """
 
-from waflib import Context, Logs, Task, Utils, Errors
+from waflib import Context, Logs, Task, Utils
 from waflib.Configure import conf
 from waflib.TaskGen import before_method, feature, taskgen_method
 
@@ -93,7 +92,7 @@ class update_submodule(Task.Task):
                 else:
                     r = Task.RUN_ME
 
-        if getattr(self,'non_fast_forward',[]):
+        if self.non_fast_forward:
             r = Task.SKIP_ME
 
         return r
@@ -150,7 +149,7 @@ def git_submodule(bld, git_submodule, **kw):
 def _post_fun(bld):
     Logs.info('')
     for name, t in _submodules_tasks.items():
-        if not getattr(t,'non_fast_forward',[]):
+        if not t.non_fast_forward:
             continue
         Logs.warn("Submodule %s not updated: non-fastforward" % name)
 
@@ -158,24 +157,19 @@ def _post_fun(bld):
 def git_submodule_post_fun(bld):
     bld.add_post_fun(_post_fun)
 
-def _git_head_hash(ctx, path, short=False, hash_abbrev=8):
+def _git_head_hash(ctx, path, short=False):
     cmd = [ctx.env.get_flat('GIT'), 'rev-parse']
     if short:
-        cmd.append(f'--short={hash_abbrev}')
+        cmd.append('--short=8')
     cmd.append('HEAD')
-    try:
-        out = ctx.cmd_and_log(cmd, quiet=Context.BOTH, cwd=path)
-    except Errors.WafError as e:
-        print(e.stdout, e.stderr)
-        raise e
-
+    out = ctx.cmd_and_log(cmd, quiet=Context.BOTH, cwd=path)
     return out.strip()
 
 @conf
-def git_submodule_head_hash(self, name, short=False, hash_abbrev=8):
+def git_submodule_head_hash(self, name, short=False):
     module_node = self.srcnode.make_node(os.path.join('modules', name))
-    return _git_head_hash(self, module_node.abspath(), short=short, hash_abbrev=hash_abbrev)
+    return _git_head_hash(self, module_node.abspath(), short=short)
 
 @conf
-def git_head_hash(self, short=False, hash_abbrev=8):
-    return _git_head_hash(self, self.srcnode.abspath(), short=short, hash_abbrev=hash_abbrev)
+def git_head_hash(self, short=False):
+    return _git_head_hash(self, self.srcnode.abspath(), short=short)

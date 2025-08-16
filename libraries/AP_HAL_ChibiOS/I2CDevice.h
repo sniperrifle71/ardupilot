@@ -23,6 +23,7 @@
 
 #include <AP_HAL/HAL.h>
 #include <AP_HAL/I2CDevice.h>
+#include <AP_HAL/utility/OwnPtr.h>
 #include "AP_HAL_ChibiOS.h"
 
 #if HAL_USE_I2C == TRUE
@@ -51,8 +52,6 @@ public:
     static void clear_all(void);
     static void clear_bus(uint8_t busidx);
     static uint8_t read_sda(uint8_t busidx);
-    static bool check_select_pins(uint8_t check_pins);
-    static void set_bus_to_floating(uint8_t busidx);
 };
 
 class I2CDevice : public AP_HAL::I2CDevice {
@@ -125,12 +124,10 @@ public:
         return static_cast<I2CDeviceManager*>(i2c_mgr);
     }
 
-    /* Get a pointer to a newly-allocated I2CDevice handle.  Lifetime
-     * is externally handled */
-    AP_HAL::I2CDevice *get_device_ptr(uint8_t bus, uint8_t address,
-                                  uint32_t bus_clock=400000,
-                                  bool use_smbus = false,
-                                  uint32_t timeout_ms=4) override;
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> get_device(uint8_t bus, uint8_t address,
+                                                 uint32_t bus_clock=400000,
+                                                 bool use_smbus = false,
+                                                 uint32_t timeout_ms=4) override;
 
     /*
       get mask of bus numbers for all configured I2C buses

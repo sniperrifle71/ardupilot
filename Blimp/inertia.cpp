@@ -8,17 +8,17 @@ void Blimp::read_inertia()
 
     // pull position from ahrs
     Location loc;
-    ahrs.get_location(loc);
+    ahrs.get_position(loc);
     current_loc.lat = loc.lat;
     current_loc.lng = loc.lng;
 
     // exit immediately if we do not have an altitude estimate
-    if (!ahrs.has_status(AP_AHRS::Status::VERT_POS)) {
+    if (!inertial_nav.get_filter_status().flags.vert_pos) {
         return;
     }
 
     // current_loc.alt is alt-above-home, converted from inertial nav's alt-above-ekf-origin
-    const int32_t alt_above_origin_cm = inertial_nav.get_position_z_up_cm();
+    const int32_t alt_above_origin_cm = inertial_nav.get_altitude();
     current_loc.set_alt_cm(alt_above_origin_cm, Location::AltFrame::ABOVE_ORIGIN);
     if (!ahrs.home_is_set() || !current_loc.change_alt_frame(Location::AltFrame::ABOVE_HOME)) {
         // if home has not been set yet we treat alt-above-origin as alt-above-home

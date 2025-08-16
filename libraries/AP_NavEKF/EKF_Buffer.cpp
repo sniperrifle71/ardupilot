@@ -10,21 +10,22 @@
 
 // constructor
 ekf_ring_buffer::ekf_ring_buffer(uint8_t _elsize) :
-    elsize(_elsize),
-    buffer(nullptr)
+    elsize(_elsize)
 {}
 
-bool ekf_ring_buffer::init(uint8_t _size)
+bool ekf_ring_buffer::init(uint8_t size)
 {
     if (buffer) {
         free(buffer);
     }
-    buffer = calloc(_size, elsize);
+    buffer = calloc(size, elsize);
     if (buffer == nullptr) {
         return false;
     }
-    size = _size;
-    reset();
+    _size = size;
+    _head = 0;
+    _tail = 0;
+    _new_data = false;
     return true;
 }
 
@@ -39,7 +40,7 @@ void *ekf_ring_buffer::get_offset(uint8_t idx) const
 /*
   get a reference to the timestamp for an index
  */
-uint32_t ekf_ring_buffer::time_ms(uint8_t idx) const
+uint32_t &ekf_ring_buffer::time_ms(uint8_t idx)
 {
     EKF_obs_element_t *el = (EKF_obs_element_t *)get_offset(idx);
     return el->time_ms;
@@ -47,36 +48,53 @@ uint32_t ekf_ring_buffer::time_ms(uint8_t idx) const
 
 /*
   Search through a ring buffer and return the newest data that is
-  older than the time specified by sample_time_ms
-  Returns false if no data can be found that is less than 100msec old
+  older than the time specified by sample_time_ms Zeros old data
+  so it cannot not be used again Returns false if no data can be
+  found that is less than 100msec old
 */
-bool ekf_ring_buffer::recall(void *element, const uint32_t sample_time_ms)
+bool ekf_ring_buffer::recall(void *element,uint32_t sample_time)
 {
-    bool ret = false;
-    uint8_t best_index = 0;  // only valid when ret becomes true
-    while (count > 0) {
-        const uint32_t toldest = time_ms(oldest);
-        const int32_t dt = sample_time_ms - toldest;
-        const bool matches = dt >= 0 && dt < 100;
-        if (matches) {
-            best_index = oldest;
-            ret = true;
+    if (!_new_data) {
+        return false;
+    }
+    bool success = false;
+    uint8_t tail = _tail, bestIndex;
+
+    if (_head == tail) {
+        if (time_ms(tail) != 0 && time_ms(tail) <= sample_time) {
+            // if head is equal to tail just check if the data is unused and within time horizon window
+            if (((sample_time - time_ms(tail)) < 100)) {
+                bestIndex = tail;
+                success = true;
+                _new_data = false;
+            }
         }
-        if (dt < 0) {
-            // the oldest element is younger than we want, stop
-            // searching and don't consume this element
-            break;
+    } else {
+        while(_head != tail) {
+            // find a measurement older than the fusion time horizon that we haven't checked before
+            if (time_ms(tail) != 0 && time_ms(tail) <= sample_time) {
+                // Find the most recent non-stale measurement that meets the time horizon criteria
+                if (((sample_time - time_ms(tail)) < 100)) {
+                    bestIndex = tail;
+                    success = true;
+                }
+            } else if (time_ms(tail) > sample_time){
+                break;
+            }
+            tail = (tail+1) % _size;
         }
-        // discard the sample
-        count--;
-        oldest = (oldest+1) % size;
     }
 
-    if (ret) {
-        memcpy(element, get_offset(best_index), elsize);
+    if (!success) {
+        return false;
     }
 
-    return ret;
+    memcpy(element, get_offset(bestIndex), elsize);
+    _tail = (bestIndex+1) % _size;
+    // make time zero to stop using it again,
+    // resolves corner case of reusing the element when head == tail
+    time_ms(bestIndex) = 0;
+    return true;
 }
 
 /*
@@ -88,26 +106,21 @@ void ekf_ring_buffer::push(const void *element)
     if (buffer == nullptr) {
         return;
     }
-
     // Advance head to next available index
-    const uint8_t head = (oldest+count) % size;
-
+    _head = (_head+1) % _size;
     // New data is written at the head
-    memcpy(get_offset(head), element, elsize);
-
-    if (count < size) {
-        count++;
-    } else {
-        oldest = (oldest+1) % size;
-    }
+    memcpy(get_offset(_head), element, elsize);
+    _new_data = true;
 }
 
 
 // zeroes all data in the ring buffer
 void ekf_ring_buffer::reset()
 {
-    count = 0;
-    oldest = 0;
+    _head = 0;
+    _tail = 0;
+    _new_data = false;
+    memset((void *)buffer,0,_size*uint32_t(elsize));
 }
 
 ////////////////////////////////////////////////////
@@ -143,7 +156,6 @@ bool ekf_imu_buffer::init(uint32_t size)
     _size = size;
     _youngest = 0;
     _oldest = 0;
-    _filled = false;
     return true;
 }
 
@@ -158,14 +170,13 @@ void ekf_imu_buffer::push_youngest_element(const void *element)
         return;
     }
     // push youngest to the buffer
-    _youngest++;
-    if (_youngest == _size) {
-        _youngest = 0;
-        _filled = true;
-    }
+    _youngest = (_youngest+1) % _size;
     memcpy(get_offset(_youngest), element, elsize);
     // set oldest data index
     _oldest = (_youngest+1) % _size;
+    if (_oldest == 0) {
+        _filled = true;
+    }
 }
 
 // retrieve the oldest data from the ring buffer tail

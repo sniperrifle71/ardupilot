@@ -7,16 +7,17 @@ MCU STM32G474 STM32G474xx
 FLASH_RESERVE_START_KB 30
 
 # store parameters in pages 13 and 14
-STORAGE_FLASH_PAGE 13
+define STORAGE_FLASH_PAGE 13
 define HAL_STORAGE_SIZE 800
 
-# board ID. See Tools/AP_Bootloader/board_types.txt
-APJ_BOARD_ID AP_HW_FlywooF745
+# board ID for firmware load
+APJ_BOARD_ID 1027
 
 # setup build for a peripheral firmware
 env AP_PERIPH 1
 
 # enable watchdog
+define HAL_WATCHDOG_ENABLED_DEFAULT true
 
 # crystal frequency
 OSCILLATOR_HZ 24000000
@@ -88,8 +89,11 @@ PC6 ESC_INT INPUT
 define HAL_NO_GPIO_IRQ
 define SERIAL_BUFFERS_SIZE 512
 
+define NO_DATAFLASH TRUE
+
 define DMA_RESERVE_SIZE 2048
 
+define PERIPH_FW TRUE
 
 # stack for fast interrupts
 define PORT_INT_REQUIRED_STACK 64
@@ -98,7 +102,9 @@ define PORT_INT_REQUIRED_STACK 64
 MAIN_STACK 0x300
 
 # PROCESS_STACK controls stack for main thread
-PROCESS_STACK 0xA00
+PROCESS_STACK 0x800
+
+define HAL_DISABLE_LOOP_DELAY
 
 # enable CAN support
 PB5 CAN2_RX CAN2
@@ -123,12 +129,20 @@ PA8 TIM1_CH1 TIM1 PWM(1) GPIO(50)
 # LED on timer
 PA15 TIM2_CH1 TIM2 PWM(2) GPIO(51)
 
-define AP_PERIPH_RC_OUT_ENABLED 1
+define HAL_PERIPH_ENABLE_RC_OUT
 
 define HAL_UART_MIN_TX_SIZE 256
 define HAL_UART_MIN_RX_SIZE 128
 
 define HAL_UART_STACK_SIZE 0x200
+
+
+define HAL_NO_GCS
+define HAL_NO_MONITOR_THREAD
+
+define HAL_MINIMIZE_FEATURES 0
+
+define HAL_BUILD_AP_PERIPH
 
 define HAL_DEVICE_THREAD_STACK 0x200
 define STORAGE_THD_WA_SIZE 512
@@ -136,15 +150,20 @@ define IO_THD_WA_SIZE      512
 
 define AP_PARAM_MAX_EMBEDDED_PARAM 512
 
+# use the app descriptor needed by MissionPlanner for CAN upload
+env APP_DESCRIPTOR MissionPlanner
 
+# reserve 256 bytes for comms between app and bootloader
+RAM_RESERVE_START 256
 
 # keep ROMFS uncompressed as we don't have enough RAM
 # to uncompress the bootloader at runtime
 env ROMFS_UNCOMPRESSED True
 
+# use DNA
+define HAL_CAN_DEFAULT_NODE_ID 0
+
+define CAN_APP_NODE_NAME "org.ardupilot.G4-ESC"
 
 # don't share any DMA channels (there are enough for everyone)
 DMA_NOSHARE *
-
-define HAL_SERIAL_ESC_COMM_ENABLED 1
-define HAL_RCIN_THREAD_ENABLED 1

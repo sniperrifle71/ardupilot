@@ -1,8 +1,8 @@
 #pragma once
 
-#include "AP_Frsky_SPort.h"
+#include <AP_HAL/AP_HAL.h>
 
-#if AP_FRSKY_SPORT_TELEM_ENABLED
+#include "AP_Frsky_SPort.h"
 
 #include <stdint.h>
 
@@ -47,5 +47,3 @@ private:
     bool should_process_packet(const uint8_t *packet, bool discard_duplicates);
     bool get_packet(AP_Frsky_SPort::sport_packet_t &sport_packet, bool discard_duplicates);
 };
-
-#endif  // AP_FRSKY_SPORT_TELEM_ENABLED

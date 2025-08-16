@@ -14,11 +14,12 @@
  *
  */
 
-#include "AP_RCProtocol_config.h"
-
-#if AP_RCPROTOCOL_IBUS_ENABLED
-
 #include "AP_RCProtocol_IBUS.h"
+
+// constructor
+AP_RCProtocol_IBUS::AP_RCProtocol_IBUS(AP_RCProtocol &_frontend) :
+    AP_RCProtocol_Backend(_frontend)
+{}
 
 // decode a full IBUS frame
 bool AP_RCProtocol_IBUS::ibus_decode(const uint8_t frame[IBUS_FRAME_SIZE], uint16_t *values, bool *ibus_failsafe)
@@ -104,5 +105,3 @@ void AP_RCProtocol_IBUS::process_byte(uint8_t b, uint32_t baudrate)
     }
     _process_byte(AP_HAL::micros(), b);
 }
-
-#endif  // AP_RCPROTOCOL_IBUS_ENABLED

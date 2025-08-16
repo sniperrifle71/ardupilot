@@ -1,10 +1,11 @@
 #pragma once
 
-#include "AP_Frsky_config.h"
-
-#if AP_FRSKY_TELEM_ENABLED
-
+#include <AP_HAL/AP_HAL.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
+
+#ifndef HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
+#define HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL 1
+#endif
 
 class AP_Frsky_Backend
 {
@@ -138,14 +139,8 @@ protected:
     static const uint8_t SENSOR_ID_RPM             = 0xE4; // Sensor ID  4
     static const uint8_t SENSOR_ID_SP2UR           = 0xC6; // Sensor ID  6
 
-    enum frsky_options_e : uint8_t {
-        OPTION_AIRSPEED_AND_GROUNDSPEED = 1U<<0,
-    };
-
 private:
 
     void loop(void);
 
 };
-
-#endif  // AP_FRSKY_TELEM_ENABLED

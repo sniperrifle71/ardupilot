@@ -19,49 +19,35 @@
 
 #pragma once
 
-#include "AP_NMEA_Output_config.h"
+#include <AP_HAL/AP_HAL.h>
+#include <AP_AHRS/AP_AHRS.h>
 
-#if HAL_NMEA_OUTPUT_ENABLED
+#if !HAL_MINIMIZE_FEATURES && AP_AHRS_NAVEKF_AVAILABLE
 
-#ifndef NMEA_MAX_OUTPUTS
-#define NMEA_MAX_OUTPUTS 3
-#endif
-
-#include <AP_Param/AP_Param.h>
+#include <AP_SerialManager/AP_SerialManager.h>
 
 class AP_NMEA_Output {
 
 public:
-
-    AP_NMEA_Output() {
-        // setup parameter defaults
-        AP_Param::setup_object_defaults(this, var_info);
-    }
+    static AP_NMEA_Output* probe();
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_NMEA_Output);
+    AP_NMEA_Output(const AP_NMEA_Output &other) = delete;
+    AP_NMEA_Output &operator=(const AP_NMEA_Output&) = delete;
 
     void update();
 
-    void init();
-
-    enum class Enabled_Messages {
-        GPGGA   = (1<<0),
-        GPRMC   = (1<<1),
-        PASHR   = (1<<2),
-    };
-
-    static const struct AP_Param::GroupInfo var_info[];
-
 private:
+    AP_NMEA_Output();
+
+    uint8_t _nmea_checksum(const char *str);
+
+    static AP_NMEA_Output* _singleton;
 
     uint8_t _num_outputs;
-    AP_HAL::UARTDriver* _uart[NMEA_MAX_OUTPUTS];
+    AP_HAL::UARTDriver* _uart[SERIALMANAGER_NUM_PORTS];
 
     uint32_t _last_run_ms;
-
-    AP_Int16 _interval_ms;
-    AP_Int16 _message_enable_bitmask;
 };
 
-#endif  // !HAL_NMEA_OUTPUT_ENABLED
+#endif  // !HAL_MINIMIZE_FEATURES && AP_AHRS_NAVEKF_AVAILABLE

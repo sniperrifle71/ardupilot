@@ -5,7 +5,6 @@
  *       boolean failsafe reflects the current state
  */
 
-#include <AP_Vehicle/AP_MultiCopter.h>
 
 bool Blimp::failsafe_option(FailsafeOption opt) const
 {
@@ -14,7 +13,7 @@ bool Blimp::failsafe_option(FailsafeOption opt) const
 
 void Blimp::failsafe_radio_on_event()
 {
-    LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_RADIO, LogErrorCode::FAILSAFE_OCCURRED);
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_RADIO, LogErrorCode::FAILSAFE_OCCURRED);
 
     // set desired action based on FS_THR_ENABLE parameter
     Failsafe_Action desired_action;
@@ -59,13 +58,13 @@ void Blimp::failsafe_radio_off_event()
 {
     // no need to do anything except log the error as resolved
     // user can now override roll, pitch, yaw and throttle and even use flight mode switch to restore previous flight mode
-    LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_RADIO, LogErrorCode::FAILSAFE_RESOLVED);
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_RADIO, LogErrorCode::FAILSAFE_RESOLVED);
     gcs().send_text(MAV_SEVERITY_WARNING, "Radio Failsafe Cleared");
 }
 
 void Blimp::handle_battery_failsafe(const char *type_str, const int8_t action)
 {
-    LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_BATT, LogErrorCode::FAILSAFE_OCCURRED);
+    AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_BATT, LogErrorCode::FAILSAFE_OCCURRED);
 
     Failsafe_Action desired_action = (Failsafe_Action)action;
 
@@ -96,13 +95,13 @@ void Blimp::failsafe_gcs_check()
         return;
     }
 
-    const uint32_t gcs_last_seen_ms = gcs().sysid_mygcs_last_seen_time_ms();
+    const uint32_t gcs_last_seen_ms = gcs().sysid_myggcs_last_seen_time_ms();
     if (gcs_last_seen_ms == 0) {
-        return;
-    }
+         return;
+     }
 
     // calc time since last gcs update
-    // note: this only looks at the heartbeat from the device id set by gcs().sysid_mygcs()
+    // note: this only looks at the heartbeat from the device id set by g.sysid_my_gcs
     const uint32_t last_gcs_update_ms = millis() - gcs_last_seen_ms;
     const uint32_t gcs_timeout_ms = uint32_t(constrain_float(g2.fs_gcs_timeout * 1000.0f, 0.0f, UINT32_MAX));
 
@@ -121,7 +120,7 @@ void Blimp::failsafe_gcs_check()
     } else if (last_gcs_update_ms > gcs_timeout_ms && !failsafe.gcs) {
         // New GCS failsafe event, trigger events
         set_failsafe_gcs(true);
-        arming.disarm(AP_Arming::Method::GCSFAILSAFE); // failsafe_gcs_on_event() should replace this when written
+        // failsafe_gcs_on_event();
     }
 }
 
@@ -148,30 +147,11 @@ void Blimp::do_failsafe_action(Failsafe_Action action, ModeReason reason)
     case Failsafe_Action_None:
         return;
     case Failsafe_Action_Land:
-        set_mode_land_failsafe(reason);
+        set_mode_land_with_pause(reason);
         break;
     case Failsafe_Action_Terminate: {
         arming.disarm(AP_Arming::Method::FAILSAFE_ACTION_TERMINATE);
     }
     break;
-    }
-}
-
-// check for gps glitch failsafe
-void Blimp::gpsglitch_check()
-{
-    // get filter status
-    const bool gps_glitching = AP::ahrs().has_status(AP_AHRS::Status::GPS_GLITCHING);
-
-    // log start or stop of gps glitch.  AP_Notify update is handled from within AP_AHRS
-    if (ap.gps_glitching != gps_glitching) {
-        ap.gps_glitching = gps_glitching;
-        if (gps_glitching) {
-            LOGGER_WRITE_ERROR(LogErrorSubsystem::GPS, LogErrorCode::GPS_GLITCH);
-            gcs().send_text(MAV_SEVERITY_CRITICAL,"GPS Glitch");
-        } else {
-            LOGGER_WRITE_ERROR(LogErrorSubsystem::GPS, LogErrorCode::ERROR_RESOLVED);
-            gcs().send_text(MAV_SEVERITY_CRITICAL,"GPS Glitch cleared");
-        }
     }
 }

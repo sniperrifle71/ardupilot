@@ -13,39 +13,23 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma GCC optimize("Os")
-
 #include "AP_Generator.h"
 
-#if HAL_GENERATOR_ENABLED
+#if GENERATOR_ENABLED
 
 #include "AP_Generator_IE_650_800.h"
 #include "AP_Generator_IE_2400.h"
 #include "AP_Generator_RichenPower.h"
-#include "AP_Generator_Loweheiser.h"
-
-#include <GCS_MAVLink/GCS.h>
-
-const AP_Param::GroupInfo *AP_Generator::backend_var_info;
 
 const AP_Param::GroupInfo AP_Generator::var_info[] = {
 
     // @Param: TYPE
     // @DisplayName: Generator type
     // @Description: Generator type
-    // @Values: 0:Disabled, 1:IE 650w 800w Fuel Cell, 2:IE 2.4kW Fuel Cell, 3: Richenpower, 4: Loweheiser
+    // @Values: 0:Disabled, 1:IE 650w 800w Fuel Cell, 2:IE 2.4kW Fuel Cell, 3: Richenpower
     // @User: Standard
     // @RebootRequired: True
     AP_GROUPINFO_FLAGS("TYPE", 1, AP_Generator, _type, 0, AP_PARAM_FLAG_ENABLE),
-
-    // @Param: OPTIONS
-    // @DisplayName: Generator Options
-    // @Description: Bitmask of options for generators
-    // @Bitmask: 0:Suppress Maintenance-Required Warnings
-    // @User: Standard
-    AP_GROUPINFO("OPTIONS", 2, AP_Generator, _options, 0),
-
-    AP_SUBGROUPVARPTR(_driver_ptr, "", 3, AP_Generator, backend_var_info),
 
     AP_GROUPEND
 };
@@ -64,7 +48,7 @@ AP_Generator::AP_Generator()
     _singleton = this;
 }
 
-__INITFUNC__ void AP_Generator::init()
+void AP_Generator::init()
 {
     // Select backend
     switch (type()) {
@@ -72,51 +56,27 @@ __INITFUNC__ void AP_Generator::init()
             // Not using a generator
             return;
 
-#if AP_GENERATOR_IE_650_800_ENABLED
         case Type::IE_650_800:
-            _driver_ptr = NEW_NOTHROW AP_Generator_IE_650_800(*this);
+            _driver_ptr = new AP_Generator_IE_650_800(*this);
             break;
-#endif
 
-#if AP_GENERATOR_IE_2400_ENABLED
         case Type::IE_2400:
-            _driver_ptr = NEW_NOTHROW AP_Generator_IE_2400(*this);
+            _driver_ptr = new AP_Generator_IE_2400(*this);
             break;
-#endif
 
-#if AP_GENERATOR_RICHENPOWER_ENABLED
         case Type::RICHENPOWER:
-            _driver_ptr = NEW_NOTHROW AP_Generator_RichenPower(*this);
+            _driver_ptr = new AP_Generator_RichenPower(*this);
             break;
-#endif
-
-#if AP_GENERATOR_LOWEHEISER_ENABLED
-        case Type::LOWEHEISER:
-            _driver_ptr = NEW_NOTHROW AP_Generator_Loweheiser(*this);
-            break;
-#endif
     }
 
     if (_driver_ptr != nullptr) {
         _driver_ptr->init();
     }
-
-    // if the backend has some local parameters then make those
-    // available in the tree
-    if (_driver_ptr) {
-        backend_var_info = _driver_ptr->get_var_info();
-        if (backend_var_info) {
-            AP_Param::load_object_from_eeprom(_driver_ptr, backend_var_info);
-
-            // param count could have changed
-            AP_Param::invalidate_count();
-        }
-    }
 }
 
 void AP_Generator::update()
 {
-    // Return immediately if not enabled. Don't support run-time disabling of generator
+    // Return immediatly if not enabled. Don't support run-time disabling of generator
     if (_driver_ptr == nullptr) {
         return;
     }
@@ -129,23 +89,6 @@ void AP_Generator::update()
 enum AP_Generator::Type AP_Generator::type() const
 {
     return (Type)_type.get();
-}
-
-#if AP_GENERATOR_LOWEHEISER_ENABLED
-AP_Generator_Loweheiser *AP_Generator::get_loweheiser()
-{
-    if (type() != Type::LOWEHEISER) {
-        return nullptr;
-    }
-    return (AP_Generator_Loweheiser*)_driver_ptr;
-}
-#endif
-
-bool AP_Generator::reset_consumed_energy() {
-    if (_driver_ptr == nullptr) {
-        return false;
-    }
-    return _driver_ptr->reset_consumed_energy();
 }
 
 // Pass through to backend
@@ -166,7 +109,7 @@ bool AP_Generator::pre_arm_check(char* failmsg, uint8_t failmsg_len) const
             return true;
         }
         // Don't allow arming if we have disabled the generator since boot
-        strncpy(failmsg, "Generator disabled, reboot required", failmsg_len);
+        strncpy(failmsg, "Generator disabled, reboot reqired", failmsg_len);
         return false;
     }
     if (_driver_ptr == nullptr) {

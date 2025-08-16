@@ -1,9 +1,6 @@
 #pragma once
 
-#include "AP_RangeFinder_config.h"
-
-#if AP_RANGEFINDER_BLPING_ENABLED
-
+#include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Backend_Serial.h"
 
 /**
@@ -120,25 +117,13 @@ class AP_RangeFinder_BLPing : public AP_RangeFinder_Backend_Serial
     static constexpr uint16_t _sensor_rate_ms = 50; // initialise sensor at no more than 20hz
 
 public:
-
-    static AP_RangeFinder_Backend_Serial *create(
-        RangeFinder::RangeFinder_State &_state,
-        AP_RangeFinder_Params &_params) {
-        return NEW_NOTHROW AP_RangeFinder_BLPing(_state, _params);
-    }
+    using AP_RangeFinder_Backend_Serial::AP_RangeFinder_Backend_Serial;
 
     /**
      * @brief Update class state
      *
      */
     void update(void) override;
-
-    /**
-     * @brief Get the reading confidence
-     * 100 is best quality, 0 is worst
-     *
-     */
-    int8_t get_signal_quality_pct() const override WARN_IF_UNUSED;
 
 protected:
     /**
@@ -157,9 +142,6 @@ protected:
     PingProtocol protocol;
 
 private:
-
-    using AP_RangeFinder_Backend_Serial::AP_RangeFinder_Backend_Serial;
-
     /**
      * @brief Do the necessary sensor initiation
      *
@@ -169,11 +151,11 @@ private:
     /**
      * @brief Read serial interface and calculate new distance
      *
-     * @param reading_m
+     * @param reading_cm
      * @return true
      * @return false
      */
-    bool get_reading(float &reading_m) override;
+    bool get_reading(uint16_t &reading_cm) override;
 
     /**
      * @brief Timeout between messages
@@ -188,5 +170,3 @@ private:
      */
     uint32_t last_init_ms;
 };
-
-#endif

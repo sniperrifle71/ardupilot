@@ -40,13 +40,11 @@ public:
 
     AP_Int8  _enable;  // enable buzzer sim
     AP_Int8  _pin;
-#ifdef WITH_SITL_TONEALARM
     bool was_on;
 
     uint32_t on_time;
 
     bool prep_done;
-#endif
 };
 
 }

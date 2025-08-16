@@ -1,17 +1,21 @@
 #pragma once
 
+#include <AP_AHRS/AP_AHRS.h>
 #include <AP_Common/AP_Common.h>
-#include <AC_PID/AP_PIDInfo.h>
+#include <AP_Vehicle/AP_Vehicle.h>
+#include <AP_Logger/AP_Logger.h>
 
 class AP_SteerController {
 public:
-    AP_SteerController()
+    AP_SteerController(AP_AHRS &ahrs)
+        : _ahrs(ahrs)
     {
         AP_Param::setup_object_defaults(this, var_info);
     }
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_SteerController);
+    AP_SteerController(const AP_SteerController &other) = delete;
+    AP_SteerController &operator=(const AP_SteerController&) = delete;
 
     /*
       return a steering servo output from -4500 to 4500 given a
@@ -42,14 +46,11 @@ public:
 
 	static const struct AP_Param::GroupInfo var_info[];
 
-    const class AP_PIDInfo& get_pid_info(void) const { return _pid_info; }
+    const AP_Logger::PID_Info& get_pid_info(void) const { return _pid_info; }
 
     void set_reverse(bool reverse) {
         _reverse = reverse;
     }
-
-    // Returns true if controller has been run recently
-    bool active() const;
 
 private:
     AP_Float _tau;
@@ -66,7 +67,9 @@ private:
 	AP_Float _deratefactor;
 	AP_Float _mindegree;
 
-    AP_PIDInfo _pid_info {};
+    AP_Logger::PID_Info _pid_info {};
+
+	AP_AHRS &_ahrs;
 
     bool _reverse;
 };

@@ -1,20 +1,16 @@
 #pragma once
 
-#include "AP_BattMonitor_Backend.h"
-
-#if AP_BATTERY_SMBUS_ENABLED
-
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
 #include <AP_Math/AP_Math.h>
 #include <AP_HAL/I2CDevice.h>
+#include "AP_BattMonitor_Backend.h"
 #include <utility>
 
 #define AP_BATTMONITOR_SMBUS_BUS_INTERNAL           0
 #define AP_BATTMONITOR_SMBUS_BUS_EXTERNAL           1
 #define AP_BATTMONITOR_SMBUS_I2C_ADDR               0x0B
-#define AP_BATTMONITOR_SMBUS_TIMEOUT_MICROS         5000000         // sensor becomes unhealthy if no successful readings for 5 seconds
-#define AP_BATTMONITOR_SMBUS_READ_BLOCK_MAXIMUM_TRANSFER 0x20       // A Block Read or Write is allowed to transfer a maximum of 32 data bytes.
+#define AP_BATTMONITOR_SMBUS_TIMEOUT_MICROS         5000000 // sensor becomes unhealthy if no successful readings for 5 seconds
 
 class AP_BattMonitor_SMBus : public AP_BattMonitor_Backend
 {
@@ -38,7 +34,7 @@ public:
     AP_BattMonitor_SMBus(AP_BattMonitor &mon,
                     AP_BattMonitor::BattMonitor_State &mon_state,
                     AP_BattMonitor_Params &params,
-                    uint8_t i2c_bus);
+                    AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev);
 
     // virtual destructor to reduce compiler warnings
     virtual ~AP_BattMonitor_SMBus() {}
@@ -58,28 +54,29 @@ public:
 
     virtual void init(void) override;
 
-    static const struct AP_Param::GroupInfo var_info[];
-
 protected:
 
     void read(void) override;
 
     // reads the pack full charge capacity
-    void read_full_charge_capacity(void);
+    // returns true if the read was successful, or if we already knew the pack capacity
+    bool read_full_charge_capacity(void);
 
     // reads the remaining capacity
-    // which will only be read if we know the full charge capacity (accounting for battery degradation)
-    void read_remaining_capacity(void);
+    // returns true if the read was successful, which is only considered to be the
+    // we know the full charge capacity
+    bool read_remaining_capacity(void);
 
     // return a scaler that should be multiplied by the battery's reported capacity numbers to arrive at the actual capacity in mAh
     virtual uint16_t get_capacity_scaler() const { return 1; }
 
     // reads the temperature word from the battery
-    virtual void read_temp(void);
+    // returns true if the read was successful
+    virtual bool read_temp(void);
 
     // reads the serial number if it's not already known
-    // returns if the serial number was already known
-    void read_serial_number(void);
+    // returns true if the read was successful, or the number was already known
+    bool read_serial_number(void);
 
     // reads the battery's cycle count
     void read_cycle_count();
@@ -88,14 +85,11 @@ protected:
      // returns true if read was successful, false if failed
     bool read_word(uint8_t reg, uint16_t& data) const;
 
-    // read_block - returns number of characters read if successful, zero if unsuccessful
-    uint8_t read_block(uint8_t reg, uint8_t* data, uint8_t len) const;
-
     // get_PEC - calculate PEC for a read or write from the battery
     // buff is the data that was read or will be written
     uint8_t get_PEC(const uint8_t i2c_addr, uint8_t cmd, bool reading, const uint8_t buff[], uint8_t len) const;
 
-    AP_HAL::I2CDevice *_dev;
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> _dev;
     bool _pec_supported; // true if PEC is supported
 
     int32_t _serial_number = -1;    // battery serial number
@@ -108,11 +102,4 @@ protected:
     virtual void timer(void) = 0;   // timer function to read from the battery
 
     AP_HAL::Device::PeriodicHandle timer_handle;
-
-    // Parameters
-    AP_Int8  _bus;          // I2C bus number
-    AP_Int8  _address;      // I2C address
-
 };
-
-#endif  // AP_BATTERY_SMBUS_ENABLED

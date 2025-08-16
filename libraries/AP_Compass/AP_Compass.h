@@ -1,7 +1,5 @@
 #pragma once
 
-#include "AP_Compass_config.h"
-
 #include <inttypes.h>
 
 #include <AP_Common/AP_Common.h>
@@ -23,16 +21,21 @@
 #define AP_COMPASS_MOT_COMP_CURRENT     0x02
 #define AP_COMPASS_MOT_COMP_PER_MOTOR   0x03
 
+// setup default mag orientation for some board types
 #ifndef MAG_BOARD_ORIENTATION
-#define MAG_BOARD_ORIENTATION ROTATION_NONE
+#if CONFIG_HAL_BOARD == HAL_BOARD_LINUX && CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BEBOP
+# define MAG_BOARD_ORIENTATION ROTATION_YAW_90
+#elif CONFIG_HAL_BOARD == HAL_BOARD_LINUX && (CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_ERLEBRAIN2 || \
+      CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_PXFMINI)
+# define MAG_BOARD_ORIENTATION ROTATION_YAW_270
+#else
+# define MAG_BOARD_ORIENTATION ROTATION_NONE
+#endif
 #endif
 
-#ifndef COMPASS_MOT_ENABLED
-#define COMPASS_MOT_ENABLED 1
-#endif
-#ifndef COMPASS_LEARN_ENABLED
-#define COMPASS_LEARN_ENABLED AP_COMPASS_CALIBRATION_FIXED_YAW_ENABLED
-#endif
+#define COMPASS_CAL_ENABLED !defined(HAL_BUILD_AP_PERIPH)
+#define COMPASS_MOT_ENABLED !defined(HAL_BUILD_AP_PERIPH)
+#define COMPASS_LEARN_ENABLED !defined(HAL_BUILD_AP_PERIPH)
 
 // define default compass calibration fitness and consistency checks
 #define AP_COMPASS_CALIBRATION_FITNESS_DEFAULT 16.0f
@@ -76,7 +79,8 @@ public:
     Compass();
 
     /* Do not allow copies */
-    CLASS_NO_COPY(Compass);
+    Compass(const Compass &other) = delete;
+    Compass &operator=(const Compass&) = delete;
 
     // get singleton instance
     static Compass *get_singleton() {
@@ -90,15 +94,13 @@ public:
     /// @returns    True if the compass was initialized OK, false if it was not
     ///             found or is not functioning.
     ///
-    __INITFUNC__ void init();
+    void init();
 
     /// Read the compass and update the mag_ variables.
     ///
     bool read();
 
-    // available returns true if the compass is both enabled and has
-    // been initialised
-    bool available() const { return _enabled && init_done; }
+    bool enabled() const { return _enabled; }
 
     /// Calculate the tilt-compensated heading_ variables.
     ///
@@ -124,10 +126,8 @@ public:
     /// @param  offsets             Offsets to the raw mag_ values in milligauss.
     ///
     void set_and_save_offsets(uint8_t i, const Vector3f &offsets);
-#if AP_COMPASS_DIAGONALS_ENABLED
     void set_and_save_diagonals(uint8_t i, const Vector3f &diagonals);
     void set_and_save_offdiagonals(uint8_t i, const Vector3f &diagonals);
-#endif
     void set_and_save_scale_factor(uint8_t i, float scale_factor);
     void set_and_save_orientation(uint8_t i, Rotation orientation);
 
@@ -154,6 +154,9 @@ public:
     /// Return true if we have set a scale factor for a compass
     bool have_scale_factor(uint8_t i) const;
 
+    // compass calibrator interface
+    void cal_update();
+
 #if COMPASS_MOT_ENABLED
     // per-motor calibration access
     void per_motor_calibration_start(void) {
@@ -166,39 +169,30 @@ public:
         _per_motor.calibration_end();
     }
 #endif
-
-#if COMPASS_CAL_ENABLED
-    // compass calibrator interface
-    void cal_update();
-
-    // start_calibration_all will only return false if there are no
-    // compasses to calibrate.
-    bool start_calibration_all(bool retry=false, bool autosave=false, float delay_sec=0.0f, bool autoreboot = false);
+    
+    void start_calibration_all(bool retry=false, bool autosave=false, float delay_sec=0.0f, bool autoreboot = false);
 
     void cancel_calibration_all();
 
     bool compass_cal_requires_reboot() const { return _cal_requires_reboot; }
-    bool is_calibrating() const;
-
-#if HAL_MAVLINK_BINDINGS_ENABLED
-    /*
-      handle an incoming MAG_CAL command
-    */
-    MAV_RESULT handle_mag_cal_command(const mavlink_command_int_t &packet);
-
-    bool send_mag_cal_progress(const class GCS_MAVLINK& link);
-    bool send_mag_cal_report(const class GCS_MAVLINK& link);
-#endif  // HAL_MAVLINK_BINDINGS_ENABLED
-#endif  // COMPASS_CAL_ENABLED
+    bool is_calibrating();
 
     // indicate which bit in LOG_BITMASK indicates we should log compass readings
     void set_log_bit(uint32_t log_bit) { _log_bit = log_bit; }
+
+    /*
+      handle an incoming MAG_CAL command
+    */
+    MAV_RESULT handle_mag_cal_command(const mavlink_command_long_t &packet);
+
+    bool send_mag_cal_progress(const class GCS_MAVLINK& link);
+    bool send_mag_cal_report(const class GCS_MAVLINK& link);
 
     // check if the compasses are pointing in the same direction
     bool consistent() const;
 
     /// Return the health of a compass
-    bool healthy(uint8_t i) const;
+    bool healthy(uint8_t i) const { return _get_state(Priority(i)).healthy; }
     bool healthy(void) const { return healthy(_first_usable); }
     uint8_t get_healthy_mask() const;
 
@@ -209,16 +203,14 @@ public:
     const Vector3f &get_offsets(uint8_t i) const { return _get_state(Priority(i)).offset; }
     const Vector3f &get_offsets(void) const { return get_offsets(_first_usable); }
 
-#if AP_COMPASS_DIAGONALS_ENABLED
     const Vector3f &get_diagonals(uint8_t i) const { return _get_state(Priority(i)).diagonals; }
     const Vector3f &get_diagonals(void) const { return get_diagonals(_first_usable); }
 
     const Vector3f &get_offdiagonals(uint8_t i) const { return _get_state(Priority(i)).offdiagonals; }
     const Vector3f &get_offdiagonals(void) const { return get_offdiagonals(_first_usable); }
-#endif  // AP_COMPASS_DIAGONALS_ENABLED
 
     // learn offsets accessor
-    bool learn_offsets_enabled() const { return _learn == LearnType::INFLIGHT; }
+    bool learn_offsets_enabled() const { return _learn == LEARN_INFLIGHT; }
 
     /// return true if the compass should be used for yaw calculations
     bool use_for_yaw(uint8_t i) const;
@@ -235,13 +227,9 @@ public:
     bool auto_declination_enabled() const { return _auto_declination != 0; }
 
     // set overall board orientation
-    void set_board_orientation(enum Rotation orientation) {
+    void set_board_orientation(enum Rotation orientation, Matrix3f* custom_rotation = nullptr) {
         _board_orientation = orientation;
-    }
-
-    // get overall board orientation
-    enum Rotation get_board_orientation(void) const {
-        return _board_orientation;
+        _custom_rotation = custom_rotation;
     }
 
     /// Set the motor compensation type
@@ -310,24 +298,24 @@ public:
 
     static const struct AP_Param::GroupInfo var_info[];
 
-    enum class LearnType {
-        NONE          = 0,
-        // INTERNAL   = 1,
-        COPY_FROM_EKF = 2,
-        INFLIGHT      = 3,
+    enum LearnType {
+        LEARN_NONE=0,
+        LEARN_INTERNAL=1,
+        LEARN_EKF=2,
+        LEARN_INFLIGHT=3
     };
 
     // return the chosen learning type
-    LearnType get_learn_type(void) const {
-        return (LearnType)_learn.get();
+    enum LearnType get_learn_type(void) const {
+        return (enum LearnType)_learn.get();
     }
 
     // set the learning type
-    void set_learn_type(LearnType type, bool save) {
+    void set_learn_type(enum LearnType type, bool save) {
         if (save) {
-            _learn.set_and_save(type);
+            _learn.set_and_save((int8_t)type);
         } else {
-            _learn.set(type);
+            _learn.set((int8_t)type);
         }
     }
     
@@ -338,20 +326,17 @@ public:
 
     uint8_t get_filter_range() const { return uint8_t(_filter_range.get()); }
 
-#if AP_COMPASS_CALIBRATION_FIXED_YAW_ENABLED
     /*
       fast compass calibration given vehicle position and yaw
      */
-    bool mag_cal_fixed_yaw(float yaw_deg, uint8_t compass_mask,
-                           float lat_deg, float lon_deg,
-                           bool force_use=false);
-#endif
+    MAV_RESULT mag_cal_fixed_yaw(float yaw_deg, uint8_t compass_mask,
+                                 float lat_deg, float lon_deg);
 
-#if AP_COMPASS_MSP_ENABLED
+#if HAL_MSP_COMPASS_ENABLED
     void handle_msp(const MSP::msp_compass_data_message_t &pkt);
 #endif
 
-#if AP_COMPASS_EXTERNALAHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
     void handle_external(const AP_ExternalAHRS::mag_data_message_t &pkt);
 #endif
 
@@ -380,14 +365,9 @@ private:
 
     // load backend drivers
     bool _add_backend(AP_Compass_Backend *backend);
-    __INITFUNC__ void _probe_external_i2c_compasses(void);
-    __INITFUNC__ void _detect_backends(void);
-    __INITFUNC__ void probe_i2c_spi_compasses(void);
-#if AP_COMPASS_DRONECAN_ENABLED
-    void probe_dronecan_compasses(void);
-#endif
+    void _probe_external_i2c_compasses(void);
+    void _detect_backends(void);
 
-#if COMPASS_CAL_ENABLED
     // compass cal
     void _update_calibration_trampoline();
     bool _accept_calibration(uint8_t i);
@@ -398,103 +378,51 @@ private:
     bool _start_calibration(uint8_t i, bool retry=false, float delay_sec=0.0f);
     bool _start_calibration_mask(uint8_t mask, bool retry=false, bool autosave=false, float delay_sec=0.0f, bool autoreboot=false);
     bool _auto_reboot() const { return _compass_cal_autoreboot; }
-#if HAL_MAVLINK_BINDINGS_ENABLED
     Priority next_cal_progress_idx[MAVLINK_COMM_NUM_BUFFERS];
     Priority next_cal_report_idx[MAVLINK_COMM_NUM_BUFFERS];
-#endif
-#endif  // COMPASS_CAL_ENABLED
 
     // see if we already have probed a i2c driver by bus number and address
     bool _have_i2c_driver(uint8_t bus_num, uint8_t address) const;
 
-#if AP_COMPASS_CALIBRATION_FIXED_YAW_ENABLED
     /*
       get mag field with the effects of offsets, diagonals and
       off-diagonals removed
     */
     bool get_uncorrected_field(uint8_t instance, Vector3f &field) const;
-#endif
-
+    
 #if COMPASS_CAL_ENABLED
     //keep track of which calibrators have been saved
     RestrictIDTypeArray<bool, COMPASS_MAX_INSTANCES, Priority> _cal_saved;
     bool _cal_autosave;
+#endif
 
     //autoreboot after compass calibration
     bool _compass_cal_autoreboot;
     bool _cal_requires_reboot;
     bool _cal_has_run;
-#endif  // COMPASS_CAL_ENABLED
 
-    // enum of drivers for COMPASS_DISBLMSK
+    // enum of drivers for COMPASS_TYPEMASK
     enum DriverType {
-#if AP_COMPASS_HMC5843_ENABLED
         DRIVER_HMC5843  =0,
-#endif
-#if AP_COMPASS_LSM303D_ENABLED
         DRIVER_LSM303D  =1,
-#endif
-#if AP_COMPASS_AK8963_ENABLED
         DRIVER_AK8963   =2,
-#endif
-#if AP_COMPASS_BMM150_ENABLED
         DRIVER_BMM150   =3,
-#endif
-#if AP_COMPASS_LSM9DS1_ENABLED
         DRIVER_LSM9DS1  =4,
-#endif
-#if AP_COMPASS_LIS3MDL_ENABLED
         DRIVER_LIS3MDL  =5,
-#endif
-#if AP_COMPASS_AK09916_ENABLED
         DRIVER_AK09916  =6,
-#endif
-#if AP_COMPASS_IST8310_ENABLED
         DRIVER_IST8310  =7,
-#endif
-#if AP_COMPASS_ICM20948_ENABLED
         DRIVER_ICM20948 =8,
-#endif
-#if AP_COMPASS_MMC3416_ENABLED
         DRIVER_MMC3416  =9,
-#endif
-#if AP_COMPASS_DRONECAN_ENABLED
         DRIVER_UAVCAN   =11,
-#endif
-#if AP_COMPASS_QMC5883L_ENABLED
         DRIVER_QMC5883L =12,
-#endif
-#if AP_COMPASS_SITL_ENABLED
         DRIVER_SITL     =13,
-#endif
-#if AP_COMPASS_MAG3110_ENABLED
         DRIVER_MAG3110  =14,
-#endif
-#if AP_COMPASS_IST8308_ENABLED
         DRIVER_IST8308  =15,
-#endif
-#if AP_COMPASS_RM3100_ENABLED
 		DRIVER_RM3100   =16,
-#endif
-#if AP_COMPASS_MSP_ENABLED
         DRIVER_MSP      =17,
-#endif
-#if AP_COMPASS_EXTERNALAHRS_ENABLED
-        DRIVER_EXTERNALAHRS   =18,
-#endif
-#if AP_COMPASS_MMC5XX3_ENABLED
+        DRIVER_SERIAL   =18,
         DRIVER_MMC5XX3  =19,
-#endif
-#if AP_COMPASS_QMC5883P_ENABLED
-        DRIVER_QMC5883P =20,
-#endif
-#if AP_COMPASS_BMM350_ENABLED
-        DRIVER_BMM350   =21,
-#endif
-#if AP_COMPASS_IIS2MDC_ENABLED
-        DRIVER_IIS2MDC  =22,
-#endif
-};
+    };
 
     bool _driver_enabled(enum DriverType driver_type);
     
@@ -512,16 +440,25 @@ private:
     uint8_t     _unreg_compass_count;
 
     // settable parameters
-    AP_Enum<LearnType> _learn;
+    AP_Int8 _learn;
 
     // board orientation from AHRS
     enum Rotation _board_orientation = ROTATION_NONE;
+
+    // custom board rotation matrix
+    Matrix3f* _custom_rotation;
+
+    // custom external compass rotation matrix
+    Matrix3f* _custom_external_rotation;
 
     // declination in radians
     AP_Float    _declination;
 
     // enable automatic declination code
     AP_Int8     _auto_declination;
+
+    // first-time-around flag used by offset nulling
+    bool        _null_init_done;
 
     // stores which bit is used to indicate we should log compass readings
     uint32_t _log_bit = -1;
@@ -533,6 +470,11 @@ private:
     // automatic compass orientation on calibration
     AP_Int8     _rotate_auto;
 
+    // custom compass rotation
+    AP_Float    _custom_roll;
+    AP_Float    _custom_pitch;
+    AP_Float    _custom_yaw;
+    
     // throttle expressed as a percentage from 0 ~ 1.0, used for motor compensation
     float       _thr;
 
@@ -543,10 +485,8 @@ private:
         Compass::Priority priority;
         AP_Int8     orientation;
         AP_Vector3f offset;
-#if AP_COMPASS_DIAGONALS_ENABLED
         AP_Vector3f diagonals;
         AP_Vector3f offdiagonals;
-#endif
         AP_Float    scale_factor;
 
         // device id detected at init.
@@ -621,9 +561,7 @@ private:
     // bitmask of options
     enum class Option : uint16_t {
         CAL_REQUIRE_GPS = (1U<<0),
-        ALLOW_DRONECAN_AUTO_REPLACEMENT = (1U<<1),
     };
-    bool option_set(Option opt) const { return (_options.get() & uint16_t(opt)) != 0; }
     AP_Int16 _options;
 
 #if COMPASS_CAL_ENABLED
@@ -661,12 +599,10 @@ private:
 
     bool _cal_thread_started;
 
-#if AP_COMPASS_MSP_ENABLED
+#if HAL_MSP_COMPASS_ENABLED
     uint8_t msp_instance_mask;
 #endif
     bool init_done;
-
-    bool suppress_devid_save;
 
     uint8_t _first_usable; // first compass usable based on COMPASSx_USE param
 };

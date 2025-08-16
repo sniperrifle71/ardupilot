@@ -232,9 +232,7 @@ void AP_Motors6DOF::output_min()
 
 int16_t AP_Motors6DOF::calc_thrust_to_pwm(float thrust_in) const
 {
-    int16_t range_up = get_pwm_output_max() - 1500;
-    int16_t range_down = 1500 - get_pwm_output_min();
-    return 1500 + thrust_in * (thrust_in > 0 ? range_up : range_down);
+    return constrain_int16(1500 + thrust_in * 400, _throttle_radio_min, _throttle_radio_max);
 }
 
 void AP_Motors6DOF::output_to_motors()
@@ -359,7 +357,6 @@ void AP_Motors6DOF::output_armed_stabilizing()
         }
     }
 
-#if AP_BATTERY_ENABLED
     const AP_BattMonitor &battery = AP::battery();
 
 	// Current limiting
@@ -370,13 +367,15 @@ void AP_Motors6DOF::output_armed_stabilizing()
 
     float _batt_current_delta = _batt_current - _batt_current_last;
 
-    float _current_change_rate = _batt_current_delta / _dt_s;
+    float loop_interval = 1.0f/_loop_rate;
 
-    float predicted_current = _batt_current + (_current_change_rate * _dt_s * 5);
+    float _current_change_rate = _batt_current_delta / loop_interval;
 
-    float batt_current_ratio = _batt_current / _batt_current_max;
+    float predicted_current = _batt_current + (_current_change_rate * loop_interval * 5);
 
-    float predicted_current_ratio = predicted_current / _batt_current_max;
+    float batt_current_ratio = _batt_current/_batt_current_max;
+
+    float predicted_current_ratio = predicted_current/_batt_current_max;
     _batt_current_last = _batt_current;
 
     if (predicted_current > _batt_current_max * 1.5f) {
@@ -384,8 +383,7 @@ void AP_Motors6DOF::output_armed_stabilizing()
     } else if (_batt_current < _batt_current_max && predicted_current > _batt_current_max) {
         batt_current_ratio = predicted_current_ratio;
     }
-    _output_limited += (_dt_s / (_dt_s + _batt_current_time_constant)) * (1 - batt_current_ratio);
-#endif
+    _output_limited += (loop_interval/(loop_interval+_batt_current_time_constant)) * (1 - batt_current_ratio);
 
     _output_limited = constrain_float(_output_limited, 0.0f, 1.0f);
 
@@ -524,8 +522,6 @@ void AP_Motors6DOF::output_armed_stabilizing_vectored_6dof()
         throttle_thrust = _throttle_thrust_max;
         limit.throttle_upper = true;
     }
-
-    throttle_thrust = constrain_float(throttle_thrust, -1.0f, _max_throttle);
 
     // calculate roll, pitch and Throttle for each motor (only used by vertical thrusters)
     rpt_max = 1; //Initialized to 1 so that normalization will only occur if value is saturated

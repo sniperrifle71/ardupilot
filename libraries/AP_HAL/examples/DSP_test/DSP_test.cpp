@@ -1,10 +1,8 @@
-#include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_HAL/AP_HAL.h>
 #include <AP_HAL_Empty/AP_HAL_Empty.h>
 #include <GCS_MAVLink/GCS_Dummy.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 #include <AP_SerialManager/AP_SerialManager.h>
-#include <AP_Logger/AP_Logger.h>
-#include <AP_InertialSensor/AP_InertialSensor.h>
 #include "GyroFrame.h"
 
 #if HAL_WITH_DSP
@@ -33,7 +31,7 @@ static AP_SerialManager serial_manager;
 static AP_BoardConfig board_config;
 static AP_InertialSensor ins;
 AP_Int32 logger_bitmask;
-static AP_Logger logger;
+static AP_Logger logger{logger_bitmask};
 
 class DummyVehicle {
 public:
@@ -41,14 +39,13 @@ public:
 
 class DSPTest : public AP_HAL::DSP {
 public:
-    virtual FFTWindowState* fft_init(uint16_t w, uint16_t sample_rate, uint8_t sliding_window_size) override { return nullptr; }
+    virtual FFTWindowState* fft_init(uint16_t w, uint16_t sample_rate, uint8_t harmonics) override { return nullptr; }
     virtual void fft_start(FFTWindowState* state, FloatBuffer& samples, uint16_t advance) override {}
     virtual uint16_t fft_analyse(FFTWindowState* state, uint16_t start_bin, uint16_t end_bin, float noise_att_cutoff) override { return 0; }
 protected:
     virtual void vector_max_float(const float* vin, uint16_t len, float* maxValue, uint16_t* maxIndex) const override {}
     virtual void vector_scale_float(const float* vin, float scale, float* vout, uint16_t len) const override {}
     virtual float vector_mean_float(const float* vin, uint16_t len) const override { return 0.0f; };
-    virtual void vector_add_float(const float* vin1, const float* vin2, float* vout, uint16_t len) const override {}
 public:
     void run_tests();
 } dsptest;
@@ -57,6 +54,10 @@ public:
 // create fake gcs object
 GCS_Dummy _gcs;
 
+const AP_Param::GroupInfo GCS_MAVLINK_Parameters::var_info[] = {
+        AP_GROUPEND
+};
+
 uint32_t frame_num = 0;
 
 void setup()
@@ -64,13 +65,13 @@ void setup()
     hal.console->printf("DSP test\n");
     board_config.init();   
     serial_manager.init();
-    fft = hal.dsp->fft_init(WINDOW_SIZE, SAMPLE_RATE);
+    fft = hal.dsp->fft_init(WINDOW_SIZE, SAMPLE_RATE, 3);
     attenuation_cutoff = powf(10.0f, -attenuation_power_db / 10.0f);
 
     for(uint16_t i = 0; i < WINDOW_SIZE; i++) {
-        float sample = sinf(2.0f * M_PI * frequency1 * i / SAMPLE_RATE) * radians(20) * 2000;
-        sample += sinf(2.0f * M_PI * frequency2 * i / SAMPLE_RATE) * radians(10) * 2000;
-        sample += sinf(2.0f * M_PI * frequency3 * i / SAMPLE_RATE) * radians(10) * 2000;
+        float sample = sinf(2.0f * M_PI * frequency1 * i / SAMPLE_RATE) * ToRad(20) * 2000;
+        sample += sinf(2.0f * M_PI * frequency2 * i / SAMPLE_RATE) * ToRad(10) * 2000;
+        sample += sinf(2.0f * M_PI * frequency3 * i / SAMPLE_RATE) * ToRad(10) * 2000;
         fft_window.push(sample);
     }
 

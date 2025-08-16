@@ -6,6 +6,8 @@
  */
 
 // motor test definitions
+#define MOTOR_TEST_PWM_MIN              800     // min pwm value accepted by the test
+#define MOTOR_TEST_PWM_MAX              2200    // max pwm value accepted by the test
 #define MOTOR_TEST_TIMEOUT_SEC          600     // max timeout is 10 minutes (600 seconds)
 
 static uint32_t motor_test_start_ms;        // system time the motor test began
@@ -82,14 +84,10 @@ void Copter::motor_test_output()
         }
 
         // sanity check throttle values
-        if (pwm < RC_Channel::RC_MIN_LIMIT_PWM || pwm > RC_Channel::RC_MAX_LIMIT_PWM) {
-            motor_test_stop();
-            return;
-        }
-
-        // turn on motor to specified pwm value
-        if (!motors->output_test_seq(motor_test_seq, pwm)) {
-            gcs().send_text(MAV_SEVERITY_INFO, "Motor Test: cancelled");
+        if (pwm >= MOTOR_TEST_PWM_MIN && pwm <= MOTOR_TEST_PWM_MAX ) {
+            // turn on motor to specified pwm value
+            motors->output_test_seq(motor_test_seq, pwm);
+        } else {
             motor_test_stop();
         }
     }
@@ -97,42 +95,29 @@ void Copter::motor_test_output()
 
 // mavlink_motor_test_check - perform checks before motor tests can begin
 //  return true if tests can continue, false if not
-bool Copter::mavlink_motor_control_check(const GCS_MAVLINK &gcs_chan, bool check_rc, const char* mode)
+bool Copter::mavlink_motor_test_check(const GCS_MAVLINK &gcs_chan, bool check_rc)
 {
     // check board has initialised
     if (!ap.initialised) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: Board initialising", mode);
-        return false;
-    }
-
-    // Check Motor test is allowed
-    char failure_msg[100] {};
-    if (!motors->motor_test_checks(ARRAY_SIZE(failure_msg), failure_msg)) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: %s", mode, failure_msg);
+        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"Motor Test: Board initialising");
         return false;
     }
 
     // check rc has been calibrated
     if (check_rc && !arming.rc_calibration_checks(true)) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: RC not calibrated", mode);
+        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"Motor Test: RC not calibrated");
         return false;
     }
 
     // ensure we are landed
     if (!ap.land_complete) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: vehicle not landed", mode);
+        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"Motor Test: vehicle not landed");
         return false;
     }
 
     // check if safety switch has been pushed
     if (hal.util->safety_switch_state() == AP_HAL::Util::SAFETY_DISARMED) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: Safety switch", mode);
-        return false;
-    }
-
-    // check E-Stop is not active
-    if (SRV_Channels::get_emergency_stop()) {
-        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"%s: Motor Emergency Stopped", mode);
+        gcs_chan.send_text(MAV_SEVERITY_CRITICAL,"Motor Test: Safety switch");
         return false;
     }
 
@@ -150,33 +135,33 @@ MAV_RESULT Copter::mavlink_motor_test_start(const GCS_MAVLINK &gcs_chan, uint8_t
     }
     // if test has not started try to start it
     if (!ap.motor_test) {
+        gcs().send_text(MAV_SEVERITY_INFO, "starting motor test");
+
         /* perform checks that it is ok to start test
            The RC calibrated check can be skipped if direct pwm is
            supplied
         */
-        if (!mavlink_motor_control_check(gcs_chan, throttle_type != 1, "Motor Test")) {
+        if (!mavlink_motor_test_check(gcs_chan, throttle_type != 1)) {
             return MAV_RESULT_FAILED;
         } else {
             // start test
-            gcs().send_text(MAV_SEVERITY_INFO, "starting motor test");
+            ap.motor_test = true;
 
             EXPECT_DELAY_MS(3000);
-
             // enable and arm motors
             if (!motors->armed()) {
-                motors->output_min();  // output lowest possible value to motors
+                enable_motor_output();
                 motors->armed(true);
                 hal.util->set_soft_armed(true);
             }
 
             // disable throttle and gps failsafe
-            g.failsafe_throttle.set(FS_THR_DISABLED);
-            g.failsafe_gcs.set(FS_GCS_DISABLED);
-            g.fs_ekf_action.set(FS_EKF_ACTION_REPORT_ONLY);
+            g.failsafe_throttle = FS_THR_DISABLED;
+            g.failsafe_gcs = FS_GCS_DISABLED;
+            g.fs_ekf_action = 0;
 
             // turn on notify leds
             AP_Notify::flags.esc_calibration = true;
-            ap.motor_test = true;
         }
     }
 
@@ -208,6 +193,9 @@ void Copter::motor_test_stop()
 
     gcs().send_text(MAV_SEVERITY_INFO, "finished motor test");    
 
+    // flag test is complete
+    ap.motor_test = false;
+
     // disarm motors
     motors->armed(false);
     hal.util->set_soft_armed(false);
@@ -227,7 +215,4 @@ void Copter::motor_test_stop()
 
     // turn off notify leds
     AP_Notify::flags.esc_calibration = false;
-
-    // flag test is complete
-    ap.motor_test = false;
 }

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "AP_Frsky_config.h"
-
-#if HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
-
 #include "AP_Frsky_MAVlite_Message.h"
 #include "AP_Frsky_SPort.h"
 
@@ -11,6 +7,7 @@
 
 #include <stdint.h>
 
+#if HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
 /*
  * An instance of this class encodes a MAVlite message into several
  * SPort packets, and pushes them onto the supplied queue.
@@ -54,5 +51,4 @@ private:
     int16_t checksum;                       // sent at end of packet
     void update_checksum(const uint8_t c);
 };
-
-#endif  // HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
+#endif

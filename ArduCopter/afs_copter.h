@@ -18,9 +18,7 @@
   advanced failsafe support for copter
  */
 
-#include "config.h"
-
-#if AP_COPTER_ADVANCED_FAILSAFE_ENABLED
+#if ADVANCED_FAILSAFE == ENABLED
 #include <AP_AdvancedFailsafe/AP_AdvancedFailsafe.h>
 
 /*
@@ -29,8 +27,7 @@
 class AP_AdvancedFailsafe_Copter : public AP_AdvancedFailsafe
 {
 public:
-
-    using AP_AdvancedFailsafe::AP_AdvancedFailsafe;
+    AP_AdvancedFailsafe_Copter(AP_Mission &_mission);
 
     // called to set all outputs to termination state
     void terminate_vehicle(void) override;
@@ -41,10 +38,7 @@ protected:
 
     // return the AFS mapped control mode
     enum control_mode afs_mode(void) override;
-
-    //to force entering auto mode when datalink loss 
-    void set_mode_auto(void) override;
 };
 
-#endif // AP_COPTER_ADVANCED_FAILSAFE_ENABLED
+#endif // ADVANCED_FAILSAFE
 

@@ -5,7 +5,6 @@
 *                   FUSE MEASURED_DATA                  *
 ********************************************************/
 
-#if AP_BEACON_ENABLED
 // select fusion of range beacon measurements
 void NavEKF2_core::SelectRngBcnFusion()
 {
@@ -323,19 +322,19 @@ void NavEKF2_core::FuseRngBcnStatic()
                 // calculate the delta to the estimated receiver position
                 ftype delta = receiverPos.z - bcnMidPosD;
 
-                // calculate the two hypothesis for our vertical position
-                ftype receiverPosDownMax;
-                ftype receiverPosDownMin;
+                // calcuate the two hypothesis for our vertical position
+                ftype receverPosDownMax;
+                ftype receverPosDownMin;
                 if (delta >= 0.0f) {
-                    receiverPosDownMax = receiverPos.z;
-                    receiverPosDownMin = receiverPos.z - 2.0f * delta;
+                    receverPosDownMax = receiverPos.z;
+                    receverPosDownMin = receiverPos.z - 2.0f * delta;
                 } else {
-                    receiverPosDownMax = receiverPos.z - 2.0f * delta;
-                    receiverPosDownMin = receiverPos.z;
+                    receverPosDownMax = receiverPos.z - 2.0f * delta;
+                    receverPosDownMin = receiverPos.z;
                 }
 
-                bcnPosOffsetMax = stateStruct.position.z - receiverPosDownMin;
-                bcnPosOffsetMin = stateStruct.position.z - receiverPosDownMax;
+                bcnPosOffsetMax = stateStruct.position.z - receverPosDownMin;
+                bcnPosOffsetMin = stateStruct.position.z - receverPosDownMax;
             } else {
                 // We are using the beacons as the primary height reference, so don't modify their vertical position
                 bcnPosOffset = 0.0f;
@@ -571,4 +570,3 @@ void NavEKF2_core::CalcRangeBeaconPosDownOffset(ftype obsVar, Vector3F &vehicleP
 
 }
 
-#endif  // AP_BEACON_ENABLED

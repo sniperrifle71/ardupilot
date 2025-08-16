@@ -17,14 +17,7 @@
  */
 #pragma once
 
-#include <AP_HAL/AP_HAL_Boards.h>
-#include <AP_HAL/RCOutput.h>
-
-#include "AP_SerialLED_config.h"
-
-#if AP_SERIALLED_ENABLED
-
-#include <stdint.h>
+#include <AP_HAL/AP_HAL.h>
 
 // limit number of LEDs, mostly to keep DMA memory consumption within
 // reasonable bounds
@@ -32,20 +25,20 @@
 
 class AP_SerialLED {
 public:
+    AP_SerialLED();
+
     // set number of LEDs per pin
     bool set_num_neopixel(uint8_t chan, uint8_t num_leds);
     bool set_num_profiled(uint8_t chan, uint8_t num_leds);
-    // set number of LEDs per pin in RGB mode
-    bool set_num_neopixel_rgb(uint8_t chan, uint8_t num_leds);
 
     // set RGB value on mask of LEDs. chan is PWM output, 1..16
     void set_RGB_mask(uint8_t chan, uint32_t ledmask, uint8_t red, uint8_t green, uint8_t blue);
 
     // set RGB value on LED. LED -1 is all LEDs. LED 0 is first LED. chan is PWM output, 1..16
-    bool set_RGB(uint8_t chan, int8_t led, uint8_t red, uint8_t green, uint8_t blue);
-
+    void set_RGB(uint8_t chan, int8_t led, uint8_t red, uint8_t green, uint8_t blue);
+    
     // trigger sending of LED changes to LEDs
-    bool send(uint8_t chan);
+    void send(uint8_t chan);
 
     // singleton support
     static AP_SerialLED *get_singleton(void) {
@@ -55,5 +48,3 @@ public:
 private:
     static AP_SerialLED singleton;
 };
-
-#endif  // AP_SERIALLED_ENABLED

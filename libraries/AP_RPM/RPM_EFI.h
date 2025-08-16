@@ -14,22 +14,19 @@
  */
 #pragma once
 
-#include "AP_RPM_config.h"
-
-#if AP_RPM_EFI_ENABLED
-
+#include "AP_RPM.h"
 #include "RPM_Backend.h"
+#include <AP_EFI/AP_EFI.h>
 
 class AP_RPM_EFI : public AP_RPM_Backend
 {
 public:
-
     // constructor
-    using AP_RPM_Backend::AP_RPM_Backend;
+    AP_RPM_EFI(AP_RPM &ranger, uint8_t instance, AP_RPM::RPM_State &_state);
 
     // update state
     void update(void) override;
 
+private:
+    uint8_t instance;
 };
-
-#endif

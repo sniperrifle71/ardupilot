@@ -15,10 +15,6 @@
 
 #pragma once
 
-#include "AP_Filesystem_config.h"
-
-#if AP_FILESYSTEM_POSIX_ENABLED
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -29,27 +25,11 @@
 #include <errno.h>
 #include "AP_Filesystem_backend.h"
 
-#ifndef AP_FILESYSTEM_POSIX_HAVE_UTIME
-#define AP_FILESYSTEM_POSIX_HAVE_UTIME 1
-#endif
-
-#ifndef AP_FILESYSTEM_POSIX_HAVE_FSYNC
-#define AP_FILESYSTEM_POSIX_HAVE_FSYNC 1
-#endif
-
-#ifndef AP_FILESYSTEM_POSIX_HAVE_STATFS
-#define AP_FILESYSTEM_POSIX_HAVE_STATFS 1
-#endif
-
-#ifndef O_CLOEXEC
-#define O_CLOEXEC 0
-#endif
-
 class AP_Filesystem_Posix : public AP_Filesystem_Backend
 {
 public:
     // functions that closely match the equivalent posix calls
-    int open(const char *fname, int flags, bool allow_absolute_paths = false) override;
+    int open(const char *fname, int flags) override;
     int close(int fd) override;
     int32_t read(int fd, void *buf, uint32_t count) override;
     int32_t write(int fd, const void *buf, uint32_t count) override;
@@ -61,7 +41,6 @@ public:
     void *opendir(const char *pathname) override;
     struct dirent *readdir(void *dirp) override;
     int closedir(void *dirp) override;
-    int rename(const char *oldpath, const char *newpath) override;
 
     // return free disk space in bytes, -1 on error
     int64_t disk_free(const char *path) override;
@@ -73,4 +52,3 @@ public:
     bool set_mtime(const char *filename, const uint32_t mtime_sec) override;
 };
 
-#endif  // AP_FILESYSTEM_POSIX_ENABLED

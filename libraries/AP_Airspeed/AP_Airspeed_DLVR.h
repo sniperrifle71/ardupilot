@@ -17,11 +17,8 @@
 // backend driver for AllSensors DLVR differential airspeed sensor
 // currently assumes a 5" of water, noise reduced, sensor
 
-#include "AP_Airspeed_config.h"
-
-#if AP_AIRSPEED_DLVR_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/utility/OwnPtr.h>
 #include <AP_HAL/I2CDevice.h>
 #include <utility>
 
@@ -32,12 +29,8 @@ class AP_Airspeed_DLVR : public AP_Airspeed_Backend
 public:
 
     AP_Airspeed_DLVR(AP_Airspeed &frontend, uint8_t _instance, const float _range_inH2O);
-    static AP_Airspeed_Backend *probe(AP_Airspeed &frontend, uint8_t _instance, AP_HAL::I2CDevice *_dev, const float _range_inH2O);
-
-    ~AP_Airspeed_DLVR(void) {
-        delete dev;
-    }
-
+    ~AP_Airspeed_DLVR(void) {}
+    
     // probe and initialise the sensor
     bool init() override;
 
@@ -60,10 +53,5 @@ private:
     uint32_t last_sample_time_ms;
     const float range_inH2O;
 
-    // initialise the sensor
-    void setup();
-
-    AP_HAL::I2CDevice *dev;
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev;
 };
-
-#endif  // AP_AIRSPEED_DLVR_ENABLED

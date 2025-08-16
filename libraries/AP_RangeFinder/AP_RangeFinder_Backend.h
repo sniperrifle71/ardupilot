@@ -14,13 +14,8 @@
  */
 #pragma once
 
-#include "AP_RangeFinder_config.h"
-
-#if AP_RANGEFINDER_ENABLED
-
 #include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL_Boards.h>
-#include <AP_HAL/Semaphores.h>
+#include <AP_HAL/AP_HAL.h>
 #include "AP_RangeFinder.h"
 
 class AP_RangeFinder_Backend
@@ -38,26 +33,16 @@ public:
     virtual void init_serial(uint8_t serial_instance) {};
 
     virtual void handle_msg(const mavlink_message_t &msg) { return; }
-
-#if AP_SCRIPTING_ENABLED
-    void get_state(RangeFinder::RangeFinder_State &state_arg);
-
-    // Returns false if scripting backing hasn't been setup.
-    virtual bool handle_script_msg(float dist_m) { return false; } // legacy interface
-    virtual bool handle_script_msg(const RangeFinder::RangeFinder_State &state_arg) { return false; }
-#endif
-
 #if HAL_MSP_RANGEFINDER_ENABLED
     virtual void handle_msp(const MSP::msp_rangefinder_data_message_t &pkt) { return; }
 #endif
 
     enum Rotation orientation() const { return (Rotation)params.orientation.get(); }
-    float distance() const { return state.distance_m; }
-    int8_t signal_quality_pct() const  WARN_IF_UNUSED { return state.signal_quality_pct; }
+    uint16_t distance_cm() const { return state.distance_cm; }
     uint16_t voltage_mv() const { return state.voltage_mv; }
-    virtual float max_distance() const { return params.max_distance; }
-    virtual float min_distance() const { return params.min_distance; }
-    float ground_clearance() const { return params.ground_clearance; }
+    virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
+    virtual int16_t min_distance_cm() const { return params.min_distance_cm; }
+    int16_t ground_clearance_cm() const { return params.ground_clearance_cm; }
     MAV_DISTANCE_SENSOR get_mav_distance_sensor_type() const;
     RangeFinder::Status status() const;
     RangeFinder::Type type() const { return (RangeFinder::Type)params.type.get(); }
@@ -76,21 +61,15 @@ public:
     uint32_t last_reading_ms() const { return state.last_reading_ms; }
 
     // get temperature reading in C.  returns true on success and populates temp argument
-    virtual bool get_temp(float &temp) const { return false; }
-
-    // return the actual type of the rangefinder, as opposed to the
-    // parameter value which may be changed at runtime.
-    RangeFinder::Type allocated_type() const { return _backend_type; }
+    virtual bool get_temp(float &temp) { return false; }
 
 protected:
 
     // update status based on distance measurement
-    void update_status(RangeFinder::RangeFinder_State &state_arg) const;
-    void update_status() { update_status(state); }
+    void update_status();
 
     // set status and update valid_count
-    static void set_status(RangeFinder::RangeFinder_State &state_arg, RangeFinder::Status status);
-    void set_status(RangeFinder::Status status) { set_status(state, status); }
+    void set_status(RangeFinder::Status status);
 
     RangeFinder::RangeFinder_State &state;
     AP_RangeFinder_Params &params;
@@ -103,5 +82,3 @@ protected:
 
     virtual MAV_DISTANCE_SENSOR _get_mav_distance_sensor_type() const = 0;
 };
-
-#endif  // AP_RANGEFINDER_ENABLED

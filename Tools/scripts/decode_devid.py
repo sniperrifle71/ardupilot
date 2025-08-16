@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
-
+#!/usr/bin/env python
 '''
 decode a device ID, such as used for COMPASS_DEV_ID, INS_ACC_ID etc
 
@@ -23,7 +20,6 @@ parser = optparse.OptionParser("decode_devid.py")
 parser.add_option("-C", "--compass", action='store_true', help='decode compass IDs')
 parser.add_option("-I", "--imu", action='store_true', help='decode IMU IDs')
 parser.add_option("-B", "--baro", action='store_true', help='decode barometer IDs')
-parser.add_option("-A", "--airspeed", action='store_true', help='decode airspeed IDs')
 
 opts, args = parser.parse_args()
 
@@ -41,7 +37,7 @@ devtype=(devid>>16)
 bustypes = {
     1: "I2C",
     2: "SPI",
-    3: "DRONECAN",
+    3: "UAVCAN",
     4: "SITL",
     5: "MSP",
     6: "SERIAL",
@@ -55,7 +51,7 @@ compass_types = {
     0x05 : "DEVTYPE_BMM150 ",
     0x06 : "DEVTYPE_LSM9DS1",
     0x08 : "DEVTYPE_LIS3MDL",
-    0x09 : "DEVTYPE_AK0991x",
+    0x09 : "DEVTYPE_AK09916",
     0x0A : "DEVTYPE_IST8310",
     0x0B : "DEVTYPE_ICM20948",
     0x0C : "DEVTYPE_MMC3416",
@@ -65,12 +61,6 @@ compass_types = {
     0x10 : "DEVTYPE_IST8308",
     0x11 : "DEVTYPE_RM3100_OLD",
     0x12 : "DEVTYPE_RM3100",
-    0x13 : "DEVTYPE_MMC5883",
-    0x14 : "DEVTYPE_AK09918",
-    0x15 : "DEVTYPE_AK09915",
-    0x16 : "DEVTYPE_QMC5883P",
-    0x17 : "DEVTYPE_BMM350",
-    0x18 : "DEVTYPE_IIS2MDC",
 }
 
 imu_types = {
@@ -101,14 +91,6 @@ imu_types = {
     0x33 : "DEVTYPE_INS_ICM40609",
     0x34 : "DEVTYPE_INS_ICM42688",
     0x35 : "DEVTYPE_INS_ICM42605",
-    0x36 : "DEVTYPE_INS_ICM40605",
-    0x37 : "DEVTYPE_INS_IIM42652",
-    0x38 : "DEVTYPE_INS_BMI270",
-    0x39 : "DEVTYPE_INS_BMI085",
-    0x3A : "DEVTYPE_INS_ICM42670",
-    0x3B : "DEVTYPE_INS_ICM45686",
-    0x3C : "DEVTYPE_INS_SCHA63T",
-    0x3D : "DEVTYPE_INS_IIM42653",
 }
 
 baro_types = {
@@ -124,34 +106,9 @@ baro_types = {
     0x0A : "DEVTYPE_BARO_LPS2XH",
     0x0B : "DEVTYPE_BARO_MS5611",
     0x0C : "DEVTYPE_BARO_SPL06",
-    0x0D : "DEVTYPE_BARO_DRONECAN",
-    0x0E : "DEVTYPE_BARO_MSP",
-    0x0F : "DEVTYPE_BARO_ICP101XX",
-    0x10 : "DEVTYPE_BARO_ICP201XX",
-    0x11 : "DEVTYPE_BARO_MS5607",
-    0x12 : "DEVTYPE_BARO_MS5837_30BA",
-    0x13 : "DEVTYPE_BARO_MS5637",
-    0x14 : "DEVTYPE_BARO_BMP390",
-    0x15 : "DEVTYPE_BARO_BMP581",
-    0x16 : "DEVTYPE_BARO_SPA06",
-    0x17 : "DEVTYPE_BARO_AUAV",
-    0x18 : "DEVTYPE_BARO_MS5837_02BA",
+    0x0D : "DEVTYPE_BARO_UAVCAN",
 }
-
-airspeed_types = {
-    0x01 : "DEVTYPE_AIRSPEED_SITL",
-    0x02 : "DEVTYPE_AIRSPEED_MS4525",
-    0x03 : "DEVTYPE_AIRSPEED_MS5525",
-    0x04 : "DEVTYPE_AIRSPEED_DLVR",
-    0x05 : "DEVTYPE_AIRSPEED_MSP",
-    0x06 : "DEVTYPE_AIRSPEED_SDP3X",
-    0x07 : "DEVTYPE_AIRSPEED_DRONECAN",
-    0x08 : "DEVTYPE_AIRSPEED_ANALOG",
-    0x09 : "DEVTYPE_AIRSPEED_NMEA",
-    0x0A : "DEVTYPE_AIRSPEED_ASP5033",
-    0x0B : "DEVTYPE_AIRSPEED_AUAV",
-}
-
+    
 decoded_devname = ""
 
 if opts.compass:
@@ -163,11 +120,8 @@ if opts.imu:
 if opts.baro:
     decoded_devname = baro_types.get(devtype, "UNKNOWN")
 
-if opts.airspeed:
-    decoded_devname = airspeed_types.get(devtype, "UNKNOWN")
-    
 if bus_type == 3:
-    #dronecan devtype represents sensor_id
+    #uavcan devtype represents sensor_id
     print("bus_type:%s(%u)  bus:%u address:%u(0x%x) sensor_id:%u(0x%x) %s" % (
         bustypes.get(bus_type,"UNKNOWN"), bus_type,
         bus, address, address, devtype-1, devtype-1, decoded_devname))

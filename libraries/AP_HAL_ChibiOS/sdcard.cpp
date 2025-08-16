@@ -14,34 +14,29 @@
  *
  */
 
-#include <hal.h>
 #include "SPIDevice.h"
 #include "sdcard.h"
-#include "bouncebuffer.h"
 #include "hwdef/common/spi_hook.h"
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_Filesystem/AP_Filesystem.h>
-#include "bouncebuffer.h"
-#include "stm32_util.h"
 
 extern const AP_HAL::HAL& hal;
 
-#if HAL_USE_FATFS
+#ifdef USE_POSIX
 static FATFS SDC_FS; // FATFS object
-#ifndef HAL_BOOTLOADER_BUILD
-static HAL_Semaphore sem;
-#endif
 static bool sdcard_running;
+static HAL_Semaphore sem;
 #endif
 
 #if HAL_USE_SDC
 static SDCConfig sdcconfig = {
+  NULL,
   SDC_MODE_4BIT,
   0
 };
 #elif HAL_USE_MMC_SPI
 MMCDriver MMCD1;
-static AP_HAL::SPIDevice *device;
+static AP_HAL::OwnPtr<AP_HAL::SPIDevice> device;
 static MMCConfig mmcconfig;
 static SPIConfig lowspeed;
 static SPIConfig highspeed;
@@ -54,30 +49,16 @@ static SPIConfig highspeed;
  */
 bool sdcard_init()
 {
-#if HAL_USE_FATFS
-#ifndef HAL_BOOTLOADER_BUILD
+#ifdef USE_POSIX
     WITH_SEMAPHORE(sem);
 
     uint8_t sd_slowdown = AP_BoardConfig::get_sdcard_slowdown();
-#else
-    uint8_t sd_slowdown = 0;  // maybe take from a define?
-#endif
 #if HAL_USE_SDC
 
-#if STM32_SDC_USE_SDMMC2 == TRUE
-    auto &sdcd = SDCD2;
-#else
-    auto &sdcd = SDCD1;
-#endif
-
-    if (sdcd.bouncebuffer == nullptr) {
+    if (SDCD1.bouncebuffer == nullptr) {
         // allocate 4k bouncebuffer for microSD to match size in
         // AP_Logger
-#if defined(STM32H7)
-        bouncebuffer_init(&sdcd.bouncebuffer, 4096, true);
-#else
-        bouncebuffer_init(&sdcd.bouncebuffer, 4096, false);
-#endif
+        bouncebuffer_init(&SDCD1.bouncebuffer, 4096, true);
     }
 
     if (sdcard_running) {
@@ -87,14 +68,14 @@ bool sdcard_init()
     const uint8_t tries = 3;
     for (uint8_t i=0; i<tries; i++) {
         sdcconfig.slowdown = sd_slowdown;
-        sdcStart(&sdcd, &sdcconfig);
-        if(sdcConnect(&sdcd) == HAL_FAILED) {
-            sdcStop(&sdcd);
+        sdcStart(&SDCD1, &sdcconfig);
+        if(sdcConnect(&SDCD1) == HAL_FAILED) {
+            sdcStop(&SDCD1);
             continue;
         }
         if (f_mount(&SDC_FS, "/", 1) != FR_OK) {
-            sdcDisconnect(&sdcd);
-            sdcStop(&sdcd);
+            sdcDisconnect(&SDCD1);
+            sdcStop(&SDCD1);
             continue;
         }
         printf("Successfully mounted SDCard (slowdown=%u)\n", (unsigned)sd_slowdown);
@@ -103,30 +84,24 @@ bool sdcard_init()
         return true;
     }
 #elif HAL_USE_MMC_SPI
-    if (MMCD1.buffer == nullptr) {
-        // allocate 16 byte non-cacheable buffer for microSD
-        MMCD1.buffer = (uint8_t*)malloc_axi_sram(MMC_BUFFER_SIZE);
-    }
-
     if (sdcard_running) {
         sdcard_stop();
     }
 
     sdcard_running = true;
 
-    if (device == nullptr) {
-        device = AP_HAL::get_HAL().spi->get_device_ptr("sdcard");
-        if (!device) {
-            printf("No sdcard SPI device found\n");
-            sdcard_running = false;
-            return false;
-        }
+    device = AP_HAL::get_HAL().spi->get_device("sdcard");
+    if (!device) {
+        printf("No sdcard SPI device found\n");
+        sdcard_running = false;
+        return false;
     }
     device->set_slowdown(sd_slowdown);
 
-    mmcObjectInit(&MMCD1, MMCD1.buffer);
+    mmcObjectInit(&MMCD1);
 
-    mmcconfig.spip = (static_cast<ChibiOS::SPIDevice*>(device))->get_driver();
+    mmcconfig.spip =
+            static_cast<ChibiOS::SPIDevice*>(device.get())->get_driver();
     mmcconfig.hscfg = &highspeed;
     mmcconfig.lscfg = &lowspeed;
 
@@ -151,7 +126,7 @@ bool sdcard_init()
     }
 #endif
     sdcard_running = false;
-#endif  // HAL_USE_FATFS
+#endif
     return false;
 }
 
@@ -160,19 +135,14 @@ bool sdcard_init()
  */
 void sdcard_stop(void)
 {
-#if HAL_USE_FATFS
+#ifdef USE_POSIX
     // unmount
     f_mount(nullptr, "/", 1);
 #endif
 #if HAL_USE_SDC
-#if STM32_SDC_USE_SDMMC2 == TRUE
-    auto &sdcd = SDCD2;
-#else
-    auto &sdcd = SDCD1;
-#endif
     if (sdcard_running) {
-        sdcDisconnect(&sdcd);
-        sdcStop(&sdcd);
+        sdcDisconnect(&SDCD1);
+        sdcStop(&SDCD1);
         sdcard_running = false;
     }
 #elif HAL_USE_MMC_SPI
@@ -186,13 +156,11 @@ void sdcard_stop(void)
 
 bool sdcard_retry(void)
 {
-#if HAL_USE_FATFS
+#ifdef USE_POSIX
     if (!sdcard_running) {
         if (sdcard_init()) {
-#if AP_FILESYSTEM_FILE_WRITING_ENABLED
             // create APM directory
             AP::FS().mkdir("/APM");
-#endif
         }
     }
     return sdcard_running;
@@ -218,23 +186,7 @@ void spiStopHook(SPIDriver *spip)
 {
 }
 
-__RAMFUNC__ void spiAcquireBusHook(SPIDriver *spip)
-{
-    if (sdcard_running) {
-        ChibiOS::SPIDevice *devptr = static_cast<ChibiOS::SPIDevice*>(device);
-        devptr->acquire_bus(true, true);
-    }
-}
-
-__RAMFUNC__ void spiReleaseBusHook(SPIDriver *spip)
-{
-    if (sdcard_running) {
-        ChibiOS::SPIDevice *devptr = static_cast<ChibiOS::SPIDevice*>(device);
-        devptr->acquire_bus(false, true);
-    }
-}
-
-__RAMFUNC__ void spiSelectHook(SPIDriver *spip)
+void spiSelectHook(SPIDriver *spip)
 {
     if (sdcard_running) {
         device->get_semaphore()->take_blocking();
@@ -242,7 +194,7 @@ __RAMFUNC__ void spiSelectHook(SPIDriver *spip)
     }
 }
 
-__RAMFUNC__ void spiUnselectHook(SPIDriver *spip)
+void spiUnselectHook(SPIDriver *spip)
 {
     if (sdcard_running) {
         device->set_chip_select(false);
@@ -257,14 +209,14 @@ void spiIgnoreHook(SPIDriver *spip, size_t n)
     }
 }
 
-__RAMFUNC__ void spiSendHook(SPIDriver *spip, size_t n, const void *txbuf)
+void spiSendHook(SPIDriver *spip, size_t n, const void *txbuf)
 {
     if (sdcard_running) {
         device->transfer((const uint8_t *)txbuf, n, nullptr, 0);
     }
 }
 
-__RAMFUNC__ void spiReceiveHook(SPIDriver *spip, size_t n, void *rxbuf)
+void spiReceiveHook(SPIDriver *spip, size_t n, void *rxbuf)
 {
     if (sdcard_running) {
         device->transfer(nullptr, 0, (uint8_t *)rxbuf, n);

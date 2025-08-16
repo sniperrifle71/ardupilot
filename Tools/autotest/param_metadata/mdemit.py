@@ -1,5 +1,4 @@
-# flake8: noqa
-
+#!/usr/bin/env python
 """
 Emit parameter documentation in markdown format
 """
@@ -58,7 +57,7 @@ class MDEmit(Emit):
         pname = g.reference
         
         # Check to see this is a parameter group with redundant information
-        rename = re.sub(r'\d+', 'n', g.reference)
+        rename = re.sub('\d+', 'n', g.reference)
         if rename in nparams:
             if rename in self.nparams:
                 return
@@ -84,7 +83,7 @@ class MDEmit(Emit):
             d = param.__dict__
             name = param.name.split(':')[-1]
             if nparam:
-                name = re.sub(r'\d+', 'n', name, 1)
+                name = re.sub('\d+', 'n', name, 1)
             tag = '%s: %s' % (name, param.DisplayName)
             t += '\n\n## %s' % tag
             if d.get('User', None) == 'Advanced':
@@ -92,9 +91,7 @@ class MDEmit(Emit):
             t += "\n\n%s" % param.Description
             
             for field in param.__dict__.keys():
-                if not self.should_emit_field(param, field):
-                    continue
-                if field not in ['name', 'DisplayName', 'Description', 'User', 'SortValues'] and field in known_param_fields:
+                if field not in ['name', 'DisplayName', 'Description', 'User'] and field in known_param_fields:
                     if field == 'Values' and Emit.prog_values_field.match(param.__dict__[field]):
                         values = (param.__dict__[field]).split(',')
                         t += "\n\n|Value|Meaning|"

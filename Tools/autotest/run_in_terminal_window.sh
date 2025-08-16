@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Try to run a command in an appropriate type of terminal window
 # depending on whats available
@@ -28,10 +28,8 @@ if [ -n "$SITL_RITW_TERMINAL" ]; then
   printf "%q " "$@" >>"$FILEPATH"
   chmod +x "$FILEPATH"
   $SITL_RITW_TERMINAL "$FILEPATH" &
-elif [ -n "$TMUX" ]; then
-  tmux new-window -dn "$name" "$TMUX_PREFIX $*"
 elif [ -n "$DISPLAY" -a -n "$(which osascript)" ]; then
-  osascript -e 'tell application "Terminal" to do script "'"cd $(pwd) && clear && $* "'"'
+  osascript -e 'tell application "Terminal" to do script "'"$* "'"'
 elif [ -n "$DISPLAY" -a -n "$(which xterm)" ]; then
   if [ $SITL_RITW_MINIMIZE -eq 1 ]; then
       ICONIC=-iconic
@@ -43,10 +41,7 @@ elif [ -n "$DISPLAY" -a -n "$(which gnome-terminal)" ]; then
   gnome-terminal -e "$*"
 elif [ -n "$STY" ]; then
   # We are running inside of screen, try to start it there
-  screen -X screen -t "$name" bash -c "cd $PWD; $*"
-elif [ -n "$ZELLIJ" ]; then
-  # Create a new pane to run
-  zellij run -n "$name" -- "$1" "${@:2}"
+  screen -X screen -t "$name" $*
 else
   filename="/tmp/$name.log"
   echo "RiTW: Window access not found, logging to $filename"

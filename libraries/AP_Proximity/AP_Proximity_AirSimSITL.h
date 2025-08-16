@@ -15,12 +15,11 @@
 
 #pragma once
 
-#include "AP_Proximity_config.h"
-
-#if AP_PROXIMITY_AIRSIMSITL_ENABLED
-
 #include "AP_Proximity_Backend.h"
 
+#if HAL_PROXIMITY_ENABLED
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <SITL/SITL.h>
 
 class AP_Proximity_AirSimSITL : public AP_Proximity_Backend
@@ -41,10 +40,10 @@ public:
     bool get_upward_distance(float &distance) const override;
 
 private:
-    SITL::SIM *sitl = AP::sitl();
+    SITL::SITL *sitl = AP::sitl();
     AP_Proximity_Temp_Boundary temp_boundary;
 
 };
+#endif // CONFIG_HAL_BOARD
 
-#endif // AP_PROXIMITY_AIRSIMSITL_ENABLED
-
+#endif // HAL_PROXIMITY_ENABLED

@@ -19,8 +19,7 @@
 #include <AP_HAL/AP_HAL.h>
 
 #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_DISCO || \
-    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BLUE || \
-    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_PILOTPI
+    CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BLUE
 #include "RCInput_Multi.h"
 
 extern const AP_HAL::HAL& hal;
@@ -32,7 +31,7 @@ RCInput_Multi::RCInput_Multi(uint8_t _num_inputs, ...) :
     num_inputs(_num_inputs)
 {
     va_list ap;
-    inputs = NEW_NOTHROW RCInput*[num_inputs];
+    inputs = new RCInput*[num_inputs];
     if (inputs == nullptr) {
         AP_HAL::panic("failed to allocated RCInput array");
     }

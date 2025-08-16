@@ -6,34 +6,19 @@
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
-#include <AP_Logger/AP_Logger.h>
-#include <GCS_MAVLink/GCS_Dummy.h>
-#include <AP_Scheduler/AP_Scheduler.h>
-#include <AP_Baro/AP_Baro.h>
-#if AP_SIM_ENABLED
-#include <SITL/SITL.h>
-#endif
 
 const AP_HAL::HAL &hal = AP_HAL::get_HAL();
 
 static AP_InertialSensor ins;
-#if AP_EXTERNAL_AHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
  static AP_ExternalAHRS eAHRS;
-#endif // AP_EXTERNAL_AHRS_ENABLED
+#endif // HAL_EXTERNAL_AHRS_ENABLED
 
 static void display_offsets_and_scaling();
 static void run_test();
 
 // board specific config
 static AP_BoardConfig BoardConfig;
-static AP_Int32 log_bitmask;
-static AP_Logger logger;
-static AP_Baro baro;
-static AP_Scheduler scheduler;
-
-#if AP_SIM_ENABLED
-static SITL::SIM sitl;
-#endif
 
 void setup(void);
 void loop(void);
@@ -43,7 +28,6 @@ void setup(void)
     // setup any board specific drivers
     BoardConfig.init();
 
-    hal.console->begin(115200);
     hal.console->printf("AP_InertialSensor startup...\n");
 
     ins.init(100);
@@ -73,7 +57,6 @@ void loop(void)
 
     // wait for user input
     while (!hal.console->available()) {
-        EXPECT_DELAY_MS(20);
         hal.scheduler->delay(20);
     }
 
@@ -89,8 +72,8 @@ void loop(void)
             run_test();
         }
 
-        if (user_input == 'r') {
-            hal.scheduler->reboot();
+        if (user_input == 'r' || user_input == 'R') {
+            hal.scheduler->reboot(false);
         }
     }
 }
@@ -127,7 +110,6 @@ static void run_test()
 
     // flush any user input
     while (hal.console->available()) {
-        EXPECT_DELAY_MS(20);
         hal.console->read();
     }
 
@@ -136,8 +118,6 @@ static void run_test()
 
     // loop as long as user does not press a key
     while (!hal.console->available()) {
-        EXPECT_DELAY_MS(10);
-
         // wait until we have a sample
         ins.wait_for_sample();
 
@@ -183,7 +163,7 @@ static void run_test()
                 state = 'u';
             }
 
-            hal.console->printf("   Gyro (%c) : X:%6.2f Y:%6.2f Z:%6.2f",
+            hal.console->printf("   Gyro (%c) : X:%6.2f Y:%6.2f Z:%6.2f\n",
                                 state, (double)gyro.x, (double)gyro.y, (double)gyro.z);
             auto temp = ins.get_temperature(ii);
             hal.console->printf("   t:%6.2f\n", (double)temp);
@@ -195,7 +175,5 @@ static void run_test()
         hal.console->read();
     }
 }
-
-GCS_Dummy _gcs;
 
 AP_HAL_MAIN();

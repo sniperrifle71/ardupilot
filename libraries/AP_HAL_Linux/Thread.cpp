@@ -25,6 +25,7 @@
 
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
+
 #include "Scheduler.h"
 
 #define STACK_POISON 0xBEBACAFE

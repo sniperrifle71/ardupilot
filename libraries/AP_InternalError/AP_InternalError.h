@@ -22,10 +22,6 @@
 
 #pragma once
 
-#include "AP_InternalError_config.h"
-
-#if AP_INTERNALERROR_ENABLED
-
 #include <stdint.h>
 
 class AP_InternalError {
@@ -87,9 +83,6 @@ public:
     // internal errors.  buffer will always be null-terminated.
     void errors_as_string(uint8_t *buffer, uint16_t len) const;
 
-    // convert an error code to a string
-    void error_to_string(char *buffer, uint16_t len, error_t error_code) const;
-
     uint32_t count() const { return total_error_count; }
 
     // internal_errors - return mask of internal errors seen
@@ -110,9 +103,10 @@ namespace AP {
     AP_InternalError &internalerror();
 };
 
-#define INTERNAL_ERROR(error_number) \
-    AP::internalerror().error(error_number, __AP_LINE__);
+extern "C" {
+    void AP_stack_overflow(const char *thread_name);
+    void AP_memory_guard_error(uint32_t size);
+}
 
-#else  // AP_INTERNALERROR_ENABLED is false
-#define INTERNAL_ERROR(error_number)
-#endif // AP_INTERNALERROR_ENABLED
+#define INTERNAL_ERROR(error_number) \
+    AP::internalerror().error(error_number, __LINE__);

@@ -1,7 +1,3 @@
-#include "AP_Mount_config.h"
-
-#if HAL_SOLO_GIMBAL_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 
 // uncomment this to force the optimisation of this code, note that
@@ -13,10 +9,11 @@
 #endif
 
 #include "SoloGimbalEKF.h"
+#if HAL_SOLO_GIMBAL_ENABLED
 #include <AP_Param/AP_Param.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 #include <AP_NavEKF/AP_Nav_Common.h>
 #include <AP_AHRS/AP_AHRS.h>
-#include <AP_Compass/AP_Compass.h>
 
 #include <stdio.h>
 
@@ -79,7 +76,7 @@ void SoloGimbalEKF::RunEKF(float delta_time, const Vector3f &delta_angles, const
         bool main_ekf_healthy = false;
         nav_filter_status main_ekf_status;
 
-        const auto &_ahrs = AP::ahrs();
+        const AP_AHRS_NavEKF &_ahrs = AP::ahrs_navekf();
 
         if (_ahrs.get_filter_status(main_ekf_status)) {
             if (main_ekf_status.flags.attitude) {
@@ -110,7 +107,7 @@ void SoloGimbalEKF::RunEKF(float delta_time, const Vector3f &delta_angles, const
         for (uint8_t i=3; i <= 5; i++) Cov[i][i] = sq(Sigma_velNED);
         for (uint8_t i=6; i <= 8; i++) Cov[i][i] = sq(Sigma_dAngBias);
         FiltInit = true;
-        DEV_PRINTF("\nSoloGimbalEKF Alignment Started\n");
+        hal.console->printf("\nSoloGimbalEKF Alignment Started\n");
 
         // Don't run the filter in this timestep because we have already used the delta velocity data to set an initial orientation
         return;
@@ -145,7 +142,7 @@ void SoloGimbalEKF::RunEKF(float delta_time, const Vector3f &delta_angles, const
         //calculate the initial heading using magnetometer, estimated tilt and declination
         alignHeading();
         YawAligned = true;
-        DEV_PRINTF("\nSoloGimbalEKF Alignment Completed\n");
+        hal.console->printf("\nSoloGimbalEKF Alignment Completed\n");
     }
 
     // Fuse magnetometer data if  we have new measurements and an aligned heading
@@ -600,7 +597,7 @@ void SoloGimbalEKF::predictCovariance()
 // Fuse the SoloGimbalEKF velocity estimates - this enables alevel reference to be maintained during constant turns
 void SoloGimbalEKF::fuseVelocity()
 {
-    const auto &_ahrs = AP::ahrs();
+    const AP_AHRS_NavEKF &_ahrs = AP::ahrs_navekf();
 
     if (!_ahrs.have_inertial_nav()) {
         return;
@@ -619,12 +616,12 @@ void SoloGimbalEKF::fuseVelocity()
         // Calculate the velocity measurement innovation using the SoloGimbalEKF estimate as the observation
         // if heading isn't aligned, use zero velocity (static assumption)
         if (YawAligned) {
-            Vector3f measVelNED;
+            Vector3f measVelNED = Vector3f(0,0,0);
             nav_filter_status main_ekf_status;
 
             if (_ahrs.get_filter_status(main_ekf_status)) {
                 if (main_ekf_status.flags.horiz_vel) {
-                    UNUSED_RESULT(_ahrs.get_velocity_NED(measVelNED));
+                    _ahrs.get_velocity_NED(measVelNED);
                 }
             }
 
@@ -671,15 +668,16 @@ void SoloGimbalEKF::fuseVelocity()
 // check for new magnetometer data and update store measurements if available
 void SoloGimbalEKF::readMagData()
 {
-    Compass &compass = AP::compass();
+    const AP_AHRS_NavEKF &_ahrs = AP::ahrs_navekf();
 
-    if (compass.use_for_yaw() &&
-        compass.last_update_usec() != lastMagUpdate) {
+    if (_ahrs.get_compass() &&
+        _ahrs.get_compass()->use_for_yaw() &&
+        _ahrs.get_compass()->last_update_usec() != lastMagUpdate) {
         // store time of last measurement update
-        lastMagUpdate = compass.last_update_usec();
+        lastMagUpdate = _ahrs.get_compass()->last_update_usec();
 
         // read compass data and scale to improve numerical conditioning
-        magData = compass.get_field();
+        magData = _ahrs.get_compass()->get_field();
 
         // let other processes know that new compass data has arrived
         newDataMag = true;
@@ -869,7 +867,7 @@ float SoloGimbalEKF::calcMagHeadingInnov()
     Tms[1][2] = sinPhi;
     Tms[2][2] = cosTheta*cosPhi;
 
-    const auto &_ahrs = AP::ahrs();
+    const AP_AHRS_NavEKF &_ahrs = AP::ahrs_navekf();
 
     // get earth magnetic field estimate from main ekf if available to take advantage of main ekf magnetic field learning
     Vector3f earth_magfield = Vector3f(0,0,0);
@@ -879,7 +877,7 @@ float SoloGimbalEKF::calcMagHeadingInnov()
     if (!earth_magfield.is_zero()) {
         declination = atan2f(earth_magfield.y,earth_magfield.x);
     } else {
-        declination = AP::compass().get_declination();
+        declination = _ahrs.get_compass()->get_declination();
     }
 
     Vector3f body_magfield = Vector3f(0,0,0);

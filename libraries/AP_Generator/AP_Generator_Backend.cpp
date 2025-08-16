@@ -12,13 +12,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma GCC optimize("Os")
-
 #include "AP_Generator_Backend.h"
 
-#if HAL_GENERATOR_ENABLED
+#if GENERATOR_ENABLED
 
-// Base class constructor
+// Base class consructor
 AP_Generator_Backend::AP_Generator_Backend(AP_Generator& frontend) :
     _frontend(frontend)
 {
@@ -31,8 +29,7 @@ void AP_Generator_Backend::update_frontend()
     _frontend._voltage = _voltage;
     _frontend._current = _current;
     _frontend._consumed_mah = _consumed_mah;
-    _frontend._fuel_remaining = _fuel_remaining;
-    _frontend._fuel_remaining_l = _fuel_remaining_l;
+    _frontend._fuel_remain_pct = _fuel_remain_pct;
     _frontend._rpm = _rpm;
     _frontend._healthy = healthy();
 }

@@ -8,38 +8,37 @@ const AP_Param::GroupInfo AC_PI_2D::var_info[] = {
     // @Param: P
     // @DisplayName: PI Proportional Gain
     // @Description: P Gain which produces an output value that is proportional to the current error value
-    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("P",    0, AC_PI_2D, _kp, default_kp),
+    AP_GROUPINFO("P",    0, AC_PI_2D, _kp, 0),
 
     // @Param: I
     // @DisplayName: PI Integral Gain
     // @Description: I Gain which produces an output that is proportional to both the magnitude and the duration of the error
-    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("I",    1, AC_PI_2D, _ki, default_ki),
+    AP_GROUPINFO("I",    1, AC_PI_2D, _ki, 0),
 
     // @Param: IMAX
     // @DisplayName: PI Integral Maximum
     // @Description: The maximum/minimum value that the I term can output
-    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("IMAX", 2, AC_PI_2D, _imax, default_imax),
+    AP_GROUPINFO("IMAX", 2, AC_PI_2D, _imax, 0),
 
     // @Param: FILT_HZ
     // @DisplayName: PI Input filter frequency in Hz
     // @Description: Input filter frequency in Hz
     // @Units: Hz
-    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("FILT_HZ", 3, AC_PI_2D, _filt_hz, default_filt_hz),
+    AP_GROUPINFO("FILT_HZ", 3, AC_PI_2D, _filt_hz, AC_PI_2D_FILT_HZ_DEFAULT),
 
     AP_GROUPEND
 };
 
 // Constructor
 AC_PI_2D::AC_PI_2D(float initial_p, float initial_i, float initial_imax, float initial_filt_hz, float dt) :
-    _dt(dt),
-    default_kp(initial_p),
-    default_ki(initial_i),
-    default_imax(initial_imax),
-    default_filt_hz(initial_filt_hz)
+    _dt(dt)
 {
     // load parameter values from eeprom
     AP_Param::setup_object_defaults(this, var_info);
 
+    _kp = initial_p;
+    _ki = initial_i;
+    _imax = fabsf(initial_imax);
     filt_hz(initial_filt_hz);
 
     // reset input filter to first value received
@@ -60,7 +59,7 @@ void AC_PI_2D::filt_hz(float hz)
     _filt_hz.set(fabsf(hz));
 
     // sanity check _filt_hz
-    _filt_hz.set(MAX(_filt_hz, AC_PI_2D_FILT_HZ_MIN));
+    _filt_hz = MAX(_filt_hz, AC_PI_2D_FILT_HZ_MIN);
 
     // calculate the input filter alpha
     calc_filt_alpha();
@@ -130,26 +129,37 @@ void AC_PI_2D::reset_I()
     _integrator.zero();
 }
 
-// Loads controller configuration from EEPROM, including gains and filter frequencies. (not used)
 void AC_PI_2D::load_gains()
 {
     _kp.load();
     _ki.load();
     _imax.load();
-    _imax.set(fabsf(_imax));
+    _imax = fabsf(_imax);
     _filt_hz.load();
 
     // calculate the input filter alpha
     calc_filt_alpha();
 }
 
-// Saves controller configuration from EEPROM, including gains and filter frequencies. (not used)
+// save_gains - save gains to eeprom
 void AC_PI_2D::save_gains()
 {
     _kp.save();
     _ki.save();
     _imax.save();
     _filt_hz.save();
+}
+
+/// Overload the function call operator to permit easy initialisation
+void AC_PI_2D::operator() (float p, float i, float imaxval, float input_filt_hz, float dt)
+{
+    _kp = p;
+    _ki = i;
+    _imax = fabsf(imaxval);
+    _filt_hz = input_filt_hz;
+    _dt = dt;
+    // calculate the input filter alpha
+    calc_filt_alpha();
 }
 
 // calc_filt_alpha - recalculate the input filter alpha

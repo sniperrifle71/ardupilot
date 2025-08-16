@@ -33,8 +33,6 @@ public:
         return byte_timestamp_us;
     }
 
-    uint32_t baud() const { return baudrate; }
-
 private:
     const uint32_t baudrate;
     const uint8_t half_bit; // width of half a bit in microseconds

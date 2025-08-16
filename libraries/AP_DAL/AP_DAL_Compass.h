@@ -4,6 +4,8 @@
 
 #include <AP_Compass/AP_Compass.h>
 
+#include <AP_Vehicle/AP_Vehicle_Type.h>
+
 class AP_DAL_Compass {
 public:
 
@@ -34,10 +36,6 @@ public:
 
     float get_declination() const {
         return _RMGH.declination;
-    }
-
-    bool available() const {
-        return _RMGH.available;
     }
 
     // return the number of enabled sensors

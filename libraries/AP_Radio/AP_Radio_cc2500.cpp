@@ -3,13 +3,12 @@
 
   Many thanks to the cleanflight and betaflight projects
  */
-#include "AP_Radio_config.h"
-
-#if AP_RADIO_CC2500_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 
 // #pragma GCC optimize("O0")
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+#if HAL_RCINPUT_WITH_AP_RADIO
 
 #include <AP_Math/AP_Math.h>
 #include "AP_Radio_cc2500.h"
@@ -17,7 +16,7 @@
 #include <stdio.h>
 #include <StorageManager/StorageManager.h>
 #include <AP_Notify/AP_Notify.h>
-#include <GCS_MAVLink/GCS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Math/crc.h>
 #include <AP_Param/AP_Param.h>
 
@@ -30,7 +29,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-#define Debug(level, fmt, args...)   do { if ((level) <= get_debug_level()) { GCS_SEND_TEXT(MAV_SEVERITY_INFO, fmt, ##args); }} while (0)
+#define Debug(level, fmt, args...)   do { if ((level) <= get_debug_level()) { gcs().send_text(MAV_SEVERITY_INFO, fmt, ##args); }} while (0)
 
 // object instance for trampoline
 AP_Radio_cc2500 *AP_Radio_cc2500::radio_singleton;
@@ -85,7 +84,7 @@ bool AP_Radio_cc2500::init(void)
 {
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
     if (_irq_handler_ctx != nullptr) {
-        AP_HAL::panic("AP_Radio_cc2500: double instantiation of irq_handler");
+        AP_HAL::panic("AP_Radio_cc2500: double instantiation of irq_handler\n");
     }
     chVTObjectInit(&timeout_vt);
     _irq_handler_ctx = chThdCreateFromHeap(NULL,
@@ -366,7 +365,7 @@ void AP_Radio_cc2500::radio_init(void)
     hal.gpio->attach_interrupt(HAL_GPIO_RADIO_IRQ, trigger_irq_radio_event, AP_HAL::GPIO::INTERRUPT_RISING);
 
     // fill in rxid for use in double bind prevention
-    char sysid[50] {};
+    char sysid[40] {};
     hal.util->get_system_id(sysid);
     uint16_t sysid_crc = calc_crc((const uint8_t *)sysid, strnlen(sysid, sizeof(sysid)));
     if (sysid_crc == 0) {
@@ -415,7 +414,7 @@ void AP_Radio_cc2500::trigger_irq_radio_event()
     chSysUnlockFromISR();
 }
 
-void AP_Radio_cc2500::trigger_timeout_event(virtual_timer_t* vt, void *arg)
+void AP_Radio_cc2500::trigger_timeout_event(void *arg)
 {
     (void)arg;
     //we are called from ISR context
@@ -1114,7 +1113,7 @@ void AP_Radio_cc2500::irq_handler_thd(void *arg)
         switch (evt) {
         case EVT_IRQ:
             if (radio_singleton->protocolState == STATE_FCCTEST) {
-                DEV_PRINTF("IRQ FCC\n");
+                hal.console->printf("IRQ FCC\n");
             }
             radio_singleton->irq_handler();
             break;
@@ -1564,4 +1563,5 @@ void AP_Radio_cc2500::check_double_bind(void)
     radio_singleton->nextChannel(1);
 }
 
-#endif  // AP_RADIO_CC2500_ENABLED
+#endif // HAL_RCINPUT_WITH_AP_RADIO
+#endif // CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS

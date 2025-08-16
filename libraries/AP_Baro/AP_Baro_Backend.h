@@ -12,21 +12,26 @@ public:
     // data to the frontend
     virtual void update() = 0;
 
+    // accumulate function. This is used for backends that don't use a
+    // timer, and need to be called regularly by the main code to
+    // trigger them to read the sensor
+    virtual void accumulate(void) {}
+
     void backend_update(uint8_t instance);
 
     //  Check that the baro valid by using a mean filter.
-    // If the value further that filter_range from mean value, it is rejected.
+    // If the value further that filtrer_range from mean value, it is rejected.
     bool pressure_ok(float press);
     uint32_t get_error_count() const { return _error_count; }
 
-#if AP_BARO_MSP_ENABLED
+#if HAL_MSP_BARO_ENABLED
     virtual void handle_msp(const MSP::msp_baro_data_message_t &pkt) {}
-#endif
+#endif 
 
-#if AP_BARO_EXTERNALAHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
     virtual void handle_external(const AP_ExternalAHRS::baro_data_message_t &pkt) {}
-#endif
-
+#endif 
+    
     /*
       device driver IDs. These are used to fill in the devtype field
       of the device ID, which shows up as BARO_DEVID* parameters to
@@ -47,18 +52,8 @@ public:
         DEVTYPE_BARO_SPL06    = 0x0C,
         DEVTYPE_BARO_UAVCAN   = 0x0D,
         DEVTYPE_BARO_MSP      = 0x0E,
-        DEVTYPE_BARO_ICP101XX = 0x0F,
-        DEVTYPE_BARO_ICP201XX = 0x10,
-        DEVTYPE_BARO_MS5607   = 0x11,
-        DEVTYPE_BARO_MS5837_30BA = 0x12,
-        DEVTYPE_BARO_MS5637   = 0x13,
-        DEVTYPE_BARO_BMP390   = 0x14,
-        DEVTYPE_BARO_BMP581   = 0x15,
-        DEVTYPE_BARO_SPA06    = 0x16,
-        DEVTYPE_BARO_AUAV     = 0x17,
-        DEVTYPE_BARO_MS5837_02BA = 0x18,
     };
-
+    
 protected:
     // reference to frontend object
     AP_Baro &_frontend;

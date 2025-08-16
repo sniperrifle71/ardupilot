@@ -23,38 +23,24 @@
 #endif
 
 /*
-  define for controlling how long the watchdog is set for.
-*/
-#ifndef STM32_WDG_TIMEOUT_MS
-#define STM32_WDG_TIMEOUT_MS 2048
-#endif
-#if STM32_WDG_TIMEOUT_MS > 4096 || STM32_WDG_TIMEOUT_MS < 20
-#error "Watchdog timeout out of range"
-#endif
-
-/*
   defines for working out if the reset was from the watchdog
  */
 #if defined(STM32H7)
 #define WDG_RESET_STATUS (*(__IO uint32_t *)(RCC_BASE + 0xD0))
 #define WDG_RESET_CLEAR (1U<<16)
 #define WDG_RESET_IS_IWDG (1U<<26)
-#define WDG_RESET_IS_SFT (1U<<24)
 #elif defined(STM32F7) || defined(STM32F4)
 #define WDG_RESET_STATUS (*(__IO uint32_t *)(RCC_BASE + 0x74))
 #define WDG_RESET_CLEAR (1U<<24)
 #define WDG_RESET_IS_IWDG (1U<<29)
-#define WDG_RESET_IS_SFT (1U<<28)
 #elif defined(STM32F1) || defined(STM32F3)
 #define WDG_RESET_STATUS (*(__IO uint32_t *)(RCC_BASE + 0x24))
 #define WDG_RESET_CLEAR (1U<<24)
 #define WDG_RESET_IS_IWDG (1U<<29)
-#define WDG_RESET_IS_SFT (1U<<28)
-#elif defined(STM32G4) || defined(STM32L4) || defined(STM32L4PLUS)
+#elif defined(STM32G4)
 #define WDG_RESET_STATUS (*(__IO uint32_t *)(RCC_BASE + 0x94))
 #define WDG_RESET_CLEAR (1U<<23)
 #define WDG_RESET_IS_IWDG (1U<<29)
-#define WDG_RESET_IS_SFT (1U<<28)
 #else
 #error "Unsupported IWDG MCU config"
 #endif
@@ -70,7 +56,7 @@ typedef struct
 
 #define IWDGD (*(IWDG_Regs *)(IWDG_BASE))
 
-static uint32_t reset_reason;
+static bool was_watchdog_reset;
 static bool watchdog_enabled;
 
 /*
@@ -78,17 +64,16 @@ static bool watchdog_enabled;
  */
 void stm32_watchdog_init(void)
 {
-    // setup the watchdog timeout
-    // t = 4 * 2^PR * (RLR+1) / 32KHz
+    // setup for 2s reset
     IWDGD.KR = 0x5555;
-    IWDGD.PR = 3; // changing this would change the definition of STM32_WDG_TIMEOUT_MS
-    IWDGD.RLR = STM32_WDG_TIMEOUT_MS - 1;
+    IWDGD.PR = 2; // div16
+    IWDGD.RLR = 0xFFF;
     IWDGD.KR = 0xCCCC;
     watchdog_enabled = true;
 }
 
 /*
-  pat the dog, to prevent a reset. If not called for STM32_WDG_TIMEOUT_MS
+  pat the dog, to prevent a reset. If not called for 1s
   after stm32_watchdog_init() then MCU will reset
  */
 void stm32_watchdog_pat(void)
@@ -103,8 +88,8 @@ void stm32_watchdog_pat(void)
  */
 void stm32_watchdog_save_reason(void)
 {
-    if (reset_reason == 0) {
-        reset_reason = WDG_RESET_STATUS;
+    if (WDG_RESET_STATUS & WDG_RESET_IS_IWDG) {
+        was_watchdog_reset = true;
     }
 }
 
@@ -121,17 +106,7 @@ void stm32_watchdog_clear_reason(void)
  */
 bool stm32_was_watchdog_reset(void)
 {
-    stm32_watchdog_save_reason();
-    return (reset_reason & WDG_RESET_IS_IWDG) != 0;
-}
-
-/*
-  return true if reboot was from a software reset
- */
-bool stm32_was_software_reset(void)
-{
-    stm32_watchdog_save_reason();
-    return (reset_reason & WDG_RESET_IS_SFT) != 0;
+    return was_watchdog_reset;
 }
 
 /*

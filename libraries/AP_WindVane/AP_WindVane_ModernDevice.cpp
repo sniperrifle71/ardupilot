@@ -13,18 +13,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "AP_WindVane_config.h"
-
-#if AP_WINDVANE_MODERNDEVICE_ENABLED
-
 #include "AP_WindVane_ModernDevice.h"
 // read wind speed from Modern Device rev p wind sensor
 // https://moderndevice.com/news/calibrating-rev-p-wind-sensor-new-regression/
-
-#include <AP_HAL/AP_HAL.h>
-#include <GCS_MAVLink/GCS.h>
-
-extern const AP_HAL::HAL& hal;
 
 // constructor
 AP_WindVane_ModernDevice::AP_WindVane_ModernDevice(AP_WindVane &frontend) :
@@ -41,20 +32,14 @@ void AP_WindVane_ModernDevice::update_speed()
     // only read temp pin if defined, sensor will do OK assuming constant temp
     float temp_ambient = 28.0f; // equations were generated at this temp in above data sheet
     if (is_positive(_frontend._speed_sensor_temp_pin.get())) {
-        if (!_temp_analog_source->set_pin(_frontend._speed_sensor_temp_pin.get())) {
-            // pin invalid, don't have health monitoring to report yet
-            return;
-        }
+        _temp_analog_source->set_pin(_frontend._speed_sensor_temp_pin.get());
         analog_voltage = _temp_analog_source->voltage_average();
         temp_ambient = (analog_voltage - 0.4f) / 0.0195f; // deg C
         // constrain to reasonable range to avoid deviating from calibration too much and potential divide by zero
         temp_ambient = constrain_float(temp_ambient, 10.0f, 40.0f);
     }
 
-    if (!_speed_analog_source->set_pin(_frontend._speed_sensor_speed_pin.get())) {
-        // pin invalid, don't have health monitoring to report yet
-        return;
-    }
+    _speed_analog_source->set_pin(_frontend._speed_sensor_speed_pin.get());
     _current_analog_voltage = _speed_analog_source->voltage_average();
 
     // apply voltage offset and make sure not negative
@@ -70,9 +55,7 @@ void AP_WindVane_ModernDevice::update_speed()
 
 void AP_WindVane_ModernDevice::calibrate()
 {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "WindVane: rev P. zero wind voltage offset set to %.1f",double(_current_analog_voltage));
+    gcs().send_text(MAV_SEVERITY_INFO, "WindVane: rev P. zero wind voltage offset set to %.1f",double(_current_analog_voltage));
     _frontend._speed_sensor_voltage_offset.set_and_save(_current_analog_voltage);
     _frontend._calibration.set_and_save(0);
 }
-
-#endif  // AP_WINDVANE_MODERNDEVICE_ENABLED

@@ -8,14 +8,9 @@ class AP_Proximity_Backend_Serial : public AP_Proximity_Backend
 {
 public:
     AP_Proximity_Backend_Serial(AP_Proximity &_frontend,
-                                AP_Proximity::Proximity_State &_state,
-                                AP_Proximity_Params& _params,
-                                uint8_t serial_instance);
-
+                                AP_Proximity::Proximity_State &_state);
     // static detection function
-    // detect if a proximity sensor is connected by looking for a configured serial port
-    // serial_instance affects which serial port is used.  Should be 0 or 1 depending on whether this is the 1st or 2nd proximity sensor with a serial interface
-    static bool detect(uint8_t serial_instance);
+    static bool detect();
 
 protected:
     virtual uint16_t rxspace() const { return 0; };

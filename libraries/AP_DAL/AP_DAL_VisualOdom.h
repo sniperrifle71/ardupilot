@@ -4,6 +4,8 @@
 
 #include <AP_VisualOdom/AP_VisualOdom.h>
 
+#include <AP_Vehicle/AP_Vehicle_Type.h>
+
 #if HAL_VISUALODOM_ENABLED
 
 class AP_DAL_VisualOdom {
@@ -18,7 +20,7 @@ public:
         return RVOH.enabled;
     }
 
-    uint16_t get_delay_ms() const {
+    bool get_delay_ms() const {
         return RVOH.delay_ms;
     }
 

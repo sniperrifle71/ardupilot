@@ -37,16 +37,14 @@ int SITL::SMBusDevice::rdwr(I2C::i2c_rdwr_ioctl_data *&data)
     return -1;
 }
 
-void SITL::SMBusDevice::add_block(const char *name, uint8_t reg, I2CRegisters::RegMode mode)
+void SITL::SMBusDevice::add_block(const char *name, uint8_t reg, int8_t mode)
 {
     // ::fprintf(stderr, "Adding block %u (0x%02x) (%s)\n", reg, reg, name);
     blockname[reg] = name;
-    if (mode == I2CRegisters::RegMode::RDONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_RDONLY || mode == O_RDWR) {
         readable_blocks.set((uint8_t)reg);
     }
-    if (mode == I2CRegisters::RegMode::WRONLY ||
-        mode == I2CRegisters::RegMode::RDWR) {
+    if (mode == O_WRONLY || mode == O_RDWR) {
         writable_blocks.set((uint8_t)reg);
     }
 }

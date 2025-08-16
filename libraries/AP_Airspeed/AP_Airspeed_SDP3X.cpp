@@ -19,9 +19,6 @@
   with thanks to https://github.com/PX4/Firmware/blob/master/src/drivers/sdp3x_airspeed
  */
 #include "AP_Airspeed_SDP3X.h"
-
-#if AP_AIRSPEED_SDP3X_ENABLED
-
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Baro/AP_Baro.h>
 
@@ -42,6 +39,11 @@
 
 extern const AP_HAL::HAL &hal;
 
+AP_Airspeed_SDP3X::AP_Airspeed_SDP3X(AP_Airspeed &_frontend, uint8_t _instance) :
+    AP_Airspeed_Backend(_frontend, _instance)
+{
+}
+
 /*
   send a 16 bit command code
  */
@@ -52,7 +54,7 @@ bool AP_Airspeed_SDP3X::_send_command(uint16_t cmd)
 }
 
 // probe and initialise the sensor
-__INITFUNC__ bool AP_Airspeed_SDP3X::init()
+bool AP_Airspeed_SDP3X::init()
 {
     const uint8_t addresses[3] = { SDP3XD0_I2C_ADDR,
                                    SDP3XD1_I2C_ADDR,
@@ -62,7 +64,7 @@ __INITFUNC__ bool AP_Airspeed_SDP3X::init()
     bool ret = false;
 
     for (uint8_t i=0; i<ARRAY_SIZE(addresses) && !found; i++) {
-        _dev = hal.i2c_mgr->get_device_ptr(get_bus(), addresses[i]);
+        _dev = hal.i2c_mgr->get_device(get_bus(), addresses[i]);
         if (!_dev) {
             continue;
         }
@@ -113,7 +115,6 @@ __INITFUNC__ bool AP_Airspeed_SDP3X::init()
 
         found = true;
 
-#if HAL_GCS_ENABLED
         char c = 'X';
         switch (_scale) {
         case SDP3X_SCALE_PRESSURE_SDP31:
@@ -126,22 +127,21 @@ __INITFUNC__ bool AP_Airspeed_SDP3X::init()
             c = '3';
             break;
         }
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "SDP3%c[%u]: Found bus %u addr 0x%02x scale=%u",
-                      get_instance(),
-                      c, get_bus(), addresses[i], _scale);
-#endif
+        hal.console->printf("SDP3%c: Found on bus %u address 0x%02x scale=%u\n",
+                            c, get_bus(), addresses[i], _scale);
     }
 
     if (!found) {
         return false;
     }
 
-    // this sensor uses zero offset
+    /*
+      this sensor uses zero offset and skips cal
+     */
     set_use_zero_offset();
-
-    _dev->set_device_type(uint8_t(DevType::SDP3X));
-    set_bus_id(_dev->get_bus_id());
-
+    set_skip_cal();
+    set_offset(0);
+    
     // drop to 2 retries for runtime
     _dev->set_retries(2);
 
@@ -217,25 +217,16 @@ float AP_Airspeed_SDP3X::_correct_pressure(float press)
 
     AP_Baro *baro = AP_Baro::get_singleton();
 
-    float baro_pressure;
-    if (baro == nullptr || baro->num_instances() == 0) {
-        // with no baro assume sea level
-        baro_pressure = SSL_AIR_PRESSURE;
-    } else {
-        baro_pressure = baro->get_pressure();
+    if (baro == nullptr) {
+        return press;
     }
 
     float temperature;
     if (!get_temperature(temperature)) {
-        // assume 25C if no temperature
-        temperature = 25;
-    }
-
-    float rho_air = baro_pressure / (ISA_GAS_CONSTANT * C_TO_KELVIN(temperature));
-    if (!is_positive(rho_air)) {
-        // bad pressure
         return press;
     }
+
+    float rho_air = baro->get_pressure() / (ISA_GAS_CONSTANT * (temperature + C_TO_KELVIN));
 
     /*
       the constants in the code below come from a calibrated test of
@@ -257,7 +248,7 @@ float AP_Airspeed_SDP3X::_correct_pressure(float press)
         flow_SDP3X = 0.0f;
     }
 
-    // differential pressure through pitot tube
+    // diffential pressure through pitot tube
     float dp_pitot = 28557670.0f * (1.0f - 1.0f / (1.0f + (float)powf((flow_SDP3X / 5027611.0f), 1.227924f)));
 
     // uncorrected pressure
@@ -341,5 +332,3 @@ bool AP_Airspeed_SDP3X::_crc(const uint8_t data[], uint8_t size, uint8_t checksu
     // verify checksum
     return (crc_value == checksum);
 }
-
-#endif  // AP_AIRSPEED_SDP3X_ENABLED

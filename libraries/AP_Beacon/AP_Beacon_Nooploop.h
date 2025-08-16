@@ -2,16 +2,13 @@
 
 #include "AP_Beacon_Backend.h"
 
-#if AP_BEACON_NOOPLOOP_ENABLED
-
 #define NOOPLOOP_MSG_BUF_MAX      256
 
 class AP_Beacon_Nooploop : public AP_Beacon_Backend
 {
 
 public:
-    // constructor
-    using AP_Beacon_Backend::AP_Beacon_Backend;
+    AP_Beacon_Nooploop(AP_Beacon &frontend, AP_SerialManager &serial_manager);
 
     // return true if sensor is basically healthy (we are receiving data)
     bool healthy() override;
@@ -33,7 +30,7 @@ private:
     // send setting_frame0 to tag. tag will ack setting_frame0 with anchor position filled
     void request_setting();
 
-    // parse node_frame2 to get tag position and distance
+    // pase node_frame2 to get tag position and distance
     void parse_node_frame2();
 
     // parse setting_frame0 to get anchor position
@@ -50,6 +47,7 @@ private:
     } _state = ParseState::HEADER;
 
     // members
+    AP_HAL::UARTDriver *_uart;                  // pointer to uart configured for use with nooploop
     uint8_t _msgbuf[NOOPLOOP_MSG_BUF_MAX];      // buffer to hold most recent message from tag
     uint16_t _msg_len;                          // number of bytes received from the current message (may be larger than size of _msgbuf)
     uint16_t _frame_len;                        // message supplied frame length
@@ -58,5 +56,3 @@ private:
     bool _anchor_pos_avail;                     // flag indicates if we got anchor position or not
     uint32_t _last_request_setting_ms;          // last time we sent request_setting0 packet to tag
 };
-
-#endif  // AP_BEACON_NOOPLOOP_ENABLED

@@ -32,7 +32,7 @@ const AP_HAL::HAL& hal = AP_HAL::get_HAL();
 float temperature;
 
 // create an AHRS object for get_airspeed_max
-AP_AHRS ahrs;
+AP_AHRS_DCM ahrs;
 
 // create airspeed object
 AP_Airspeed airspeed;
@@ -65,7 +65,6 @@ void setup()
     board_config.init();
 
     // initialize airspeed
-    // Note airspeed.set_log_bit(LOG_BIT) would need to be called in order to enable logging
     airspeed.init();
 
     airspeed.calibrate(false);
@@ -81,7 +80,7 @@ void loop(void)
 
         // current system time in milliseconds
         timer = AP_HAL::millis();
-        airspeed.update();
+        airspeed.update(false);
         airspeed.get_temperature(temperature);
 
         // print temperature and airspeed to console
@@ -91,6 +90,9 @@ void loop(void)
     hal.scheduler->delay(1);
 }
 
+const struct AP_Param::GroupInfo        GCS_MAVLINK_Parameters::var_info[] = {
+    AP_GROUPEND
+};
 GCS_Dummy _gcs;
 
 AP_HAL_MAIN();

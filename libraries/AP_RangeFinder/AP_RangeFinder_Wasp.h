@@ -1,9 +1,5 @@
 #pragma once
 
-#include "AP_RangeFinder_config.h"
-
-#if AP_RANGEFINDER_WASP_ENABLED
-
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Backend_Serial.h"
 
@@ -13,12 +9,8 @@
 class AP_RangeFinder_Wasp : public AP_RangeFinder_Backend_Serial {
 
 public:
-
-    static AP_RangeFinder_Backend_Serial *create(
-        RangeFinder::RangeFinder_State &_state,
-        AP_RangeFinder_Params &_params) {
-        return NEW_NOTHROW AP_RangeFinder_Wasp(_state, _params);
-    }
+    AP_RangeFinder_Wasp(RangeFinder::RangeFinder_State &_state,
+                        AP_RangeFinder_Params &_params);
 
     void update(void) override;
 
@@ -37,9 +29,6 @@ protected:
 
 private:
 
-    AP_RangeFinder_Wasp(RangeFinder::RangeFinder_State &_state,
-                        AP_RangeFinder_Params &_params);
-
     enum wasp_configuration_stage {
         WASP_CFG_RATE,     // set the baudrate
         WASP_CFG_ENCODING, // set the encoding to LBE
@@ -57,7 +46,7 @@ private:
 
     wasp_configuration_stage configuration_state = WASP_CFG_PROTOCOL;
 
-    bool get_reading(float &reading_m) override;
+    bool get_reading(uint16_t &reading_cm) override;
 
     void parse_response(void);
 
@@ -70,5 +59,3 @@ private:
     AP_Int16 thr;
     AP_Int8  baud;
 };
-
-#endif

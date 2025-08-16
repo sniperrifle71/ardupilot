@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 '''
 these tables are generated from the STM32 datasheets for the
 STM32F40x
@@ -20,14 +18,7 @@ mcu = {
     'RAM_MAP' : [
         (0x20000000, 128, 1), # main memory, DMA safe
         (0x10000000,  64, 2), # CCM memory, faster, but not DMA safe
-    ],
-
-	'EXPECTED_CLOCK' : 168000000,
-
-    'DEFINES' : {
-        'STM32F4' : '1',
-    }
-
+    ]
 }
 
 DMA_Map = {

@@ -1,8 +1,6 @@
-#include "AP_Radio_config.h"
-
-#if AP_RADIO_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
+
+#if HAL_RCINPUT_WITH_AP_RADIO
 
 #include "AP_Radio.h"
 #include "AP_Radio_backend.h"
@@ -21,7 +19,7 @@ const AP_Param::GroupInfo AP_Radio::var_info[] = {
     // @Values: 0:None,1:CYRF6936,2:CC2500,3:BK2425
 
     // @User: Advanced
-    AP_GROUPINFO_FLAGS("_TYPE",  1, AP_Radio, radio_type, 0, AP_PARAM_FLAG_ENABLE),
+    AP_GROUPINFO("_TYPE",  1, AP_Radio, radio_type, 0),
 
     // @Param: _PROT
     // @DisplayName: protocol
@@ -153,36 +151,40 @@ AP_Radio::AP_Radio(void)
 bool AP_Radio::init(void)
 {
     switch (radio_type) {
-#if AP_RADIO_CYRF6936_ENABLED
+#if (not defined AP_RADIO_CYRF6936 || AP_RADIO_CYRF6936)
     case RADIO_TYPE_CYRF6936:
-        driver = NEW_NOTHROW AP_Radio_cypress(*this);
+        driver = new AP_Radio_cypress(*this);
         break;
 #endif
-#if AP_RADIO_CC2500_ENABLED
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+#if (not defined AP_RADIO_CC2500 || AP_RADIO_CC2500)
     case RADIO_TYPE_CC2500:
-        driver = NEW_NOTHROW AP_Radio_cc2500(*this);
+        driver = new AP_Radio_cc2500(*this);
         break;
 #endif
-#if AP_RADIO_BK2425_ENABLED
+#endif
+#if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_CHIBIOS_SKYVIPER_F412
+#if (not defined AP_RADIO_BK2425 || AP_RADIO_BK2425)
     case RADIO_TYPE_BK2425:
-        driver = NEW_NOTHROW AP_Radio_beken(*this);
+        driver = new AP_Radio_beken(*this);
         break;
 #endif
-#if AP_RADIO_AUTO_ENABLED
+#endif
+#if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_CHIBIOS_SKYVIPER_F412
     case RADIO_TYPE_AUTO:
         // auto-detect between cc2500 and beken radios
-#if AP_RADIO_CC2500_ENABLED
+#if (not defined AP_RADIO_CC2500 || AP_RADIO_CC2500)
         if (AP_Radio_cc2500::probe()) {
-            driver = NEW_NOTHROW AP_Radio_cc2500(*this);
+            driver = new AP_Radio_cc2500(*this);
         }
 #endif
-#if AP_RADIO_BK2425_ENABLED
+#if (not defined AP_RADIO_BK2425 || AP_RADIO_BK2425)
         if (driver == nullptr) {
-            driver = NEW_NOTHROW AP_Radio_beken(*this);
+            driver = new AP_Radio_beken(*this);
         }
 #endif
         break;
-#endif  // AP_RADIO_AUTO_ENABLED
+#endif
     default:
         break;
     }
@@ -299,4 +301,5 @@ void AP_Radio::change_txmode(void)
     }
 }
 
-#endif  // AP_RADIO_ENABLED
+#endif // HAL_RCINPUT_WITH_AP_RADIO
+

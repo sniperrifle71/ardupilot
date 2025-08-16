@@ -11,16 +11,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "AC_Avoidance_config.h"
-
-#if AP_OADATABASE_ENABLED
-
 #include "AP_OADatabase.h"
 
 #include <AP_AHRS/AP_AHRS.h>
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Math/AP_Math.h>
-#include <AP_Vehicle/AP_Vehicle_Type.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -54,7 +49,7 @@ const AP_Param::GroupInfo AP_OADatabase::var_info[] = {
     // @DisplayName: OADatabase item timeout
     // @Description: OADatabase item timeout. The time an item will linger without any updates before it expires. Zero means never expires which is useful for a sent-once static environment but terrible for dynamic ones.
     // @Units: s
-    // @Range: 0 500
+    // @Range: 0 127
     // @Increment: 1
     // @User: Advanced
     AP_GROUPINFO("EXPIRE", 2, AP_OADatabase, _database_expiry_seconds, AP_OADATABASE_TIMEOUT_SECONDS_DEFAULT),
@@ -72,11 +67,11 @@ const AP_Param::GroupInfo AP_OADatabase::var_info[] = {
     // @Description: OADatabase output level to configure which database objects are sent to the ground station. All data is always available internally for avoidance algorithms.
     // @Values: 0:Disabled,1:Send only HIGH importance items,2:Send HIGH and NORMAL importance items,3:Send all items
     // @User: Advanced
-    AP_GROUPINFO("OUTPUT", 4, AP_OADatabase, _output_level, (float)OutputLevel::HIGH),
+    AP_GROUPINFO("OUTPUT", 4, AP_OADatabase, _output_level, (float)OA_DbOutputLevel::OUTPUT_LEVEL_SEND_HIGH),
 
     // @Param: BEAM_WIDTH
     // @DisplayName: OADatabase beam width
-    // @Description: Beam width of incoming lidar data, used to calculate a object radius if none is provided by the data source.
+    // @Description: Beam width of incoming lidar data
     // @Units: deg
     // @Range: 1 10
     // @User: Advanced
@@ -101,7 +96,7 @@ const AP_Param::GroupInfo AP_OADatabase::var_info[] = {
 
     // @Param{Copter}: ALT_MIN
     // @DisplayName: OADatabase minimum altitude above home before storing obstacles
-    // @Description: OADatabase will reject obstacles if vehicle's altitude above home is below this parameter, in a 3 meter radius around home. Set 0 to disable this feature.
+    // @Description: OADatabase will reject obstacle's if vehicle's altitude above home is below this parameter, in a 3 meter radius around home. Set 0 to disable this feature.
     // @Units: m
     // @Range: 0 4
     // @User: Advanced
@@ -122,9 +117,6 @@ AP_OADatabase::AP_OADatabase()
 
 void AP_OADatabase::init()
 {
-    // PARAMETER_CONVERSION - Added: JUN-2025
-    _database_expiry_seconds.convert_parameter_width(AP_PARAM_INT8);
-
     init_database();
     init_queue();
 
@@ -132,7 +124,7 @@ void AP_OADatabase::init()
     dist_to_radius_scalar = tanf(radians(MAX(_beam_width, 1.0f)));
 
     if (!healthy()) {
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "DB init failed . Sizes queue:%u, db:%u", (unsigned int)_queue.size, (unsigned int)_database.size);
+        gcs().send_text(MAV_SEVERITY_INFO, "DB init failed . Sizes queue:%u, db:%u", (unsigned int)_queue.size, (unsigned int)_database.size);
         delete _queue.items;
         delete[] _database.items;
         return;
@@ -149,50 +141,39 @@ void AP_OADatabase::update()
     database_items_remove_all_expired();
 }
 
-// Push an object into the database. Pos is the offset in meters from the EKF origin, measurement timestamp in ms, distance in meters
-void AP_OADatabase::queue_push(const Vector3f &pos, const uint32_t timestamp_ms, const float distance, const OA_DbItem::Source source, const uint32_t id)
-{
-    // Push with radius calculated from beam width
-    queue_push(pos, timestamp_ms, distance, distance * dist_to_radius_scalar, source, id);
-}
-
-// Push an object into the database. Pos is the offset in meters from the EKF origin, measurement timestamp in ms, distance in meters, radius in meters
-void AP_OADatabase::queue_push(const Vector3f &pos, const uint32_t timestamp_ms, const float distance, float radius, const OA_DbItem::Source source, const uint32_t id)
+// push a location into the database
+void AP_OADatabase::queue_push(const Vector3f &pos, uint32_t timestamp_ms, float distance)
 {
     if (!healthy()) {
         return;
     }
 
     // check if this obstacle needs to be rejected from DB because of low altitude near home
-#if APM_BUILD_COPTER_OR_HELI
+    #if APM_BUILD_TYPE(APM_BUILD_ArduCopter)
     if (!is_zero(_min_alt)) { 
-        Vector3f current_pos;
-        if (!AP::ahrs().get_relative_position_NED_home(current_pos)) {
+        Vector2f current_pos;
+        if (!AP::ahrs().get_relative_position_NE_home(current_pos)) {
             // we do not know where the vehicle is
             return;
         }
-        if (current_pos.xy().length() < AP_OADATABASE_DISTANCE_FROM_HOME) {
+        if (current_pos.length() < AP_OADATABASE_DISTANCE_FROM_HOME) {
             // vehicle is within a small radius of home 
-            if (-current_pos.z < _min_alt) {
+            float height_above_home;
+            AP::ahrs().get_relative_position_D_home(height_above_home);
+            if (-height_above_home < _min_alt) {
                 // vehicle is below the minimum alt
                 return;
             }
         }
     }
-#endif
-
-    // Apply min radius parameter
-    radius = MAX(_radius_min, radius);
-
-    // ignore objects that outside of the max distance
-    if (is_positive(_dist_max)) {
-        const float closest_point = distance - radius;
-        if (closest_point > _dist_max) {
-            return;
-        }
+    #endif
+    
+    // ignore objects that are far away
+    if ((_dist_max > 0.0f) && (distance > _dist_max)) {
+        return;
     }
 
-    const OA_DbItem item = {pos, timestamp_ms, radius, id, 0, AP_OADatabase::OA_DbItemImportance::Normal, source};
+    const OA_DbItem item = {pos, timestamp_ms, MAX(_radius_min, distance * dist_to_radius_scalar), 0, AP_OADatabase::OA_DbItemImportance::Normal};
     {
         WITH_SEMAPHORE(_queue.sem);
         _queue.items->push(item);
@@ -206,12 +187,7 @@ void AP_OADatabase::init_queue()
         return;
     }
 
-    _queue.items = NEW_NOTHROW ObjectBuffer<OA_DbItem>(_queue.size);
-    if (_queue.items != nullptr && _queue.items->get_size() == 0) {
-        // allocation failed
-        delete _queue.items;
-        _queue.items = nullptr;
-    }
+    _queue.items = new ObjectBuffer<OA_DbItem>(_queue.size);
 }
 
 void AP_OADatabase::init_database()
@@ -221,28 +197,28 @@ void AP_OADatabase::init_database()
         return;
     }
 
-    _database.items = NEW_NOTHROW OA_DbItem[_database.size];
+    _database.items = new OA_DbItem[_database.size];
 }
 
 // get bitmask of gcs channels item should be sent to based on its importance
 // returns 0xFF (send to all channels) if should be sent, 0 if it should not be sent
-uint8_t AP_OADatabase::get_send_to_gcs_flags(const OA_DbItemImportance importance) const
+uint8_t AP_OADatabase::get_send_to_gcs_flags(const OA_DbItemImportance importance)
 {
     switch (importance) {
     case OA_DbItemImportance::Low:
-        if (_output_level >= OutputLevel::ALL) {
+        if (_output_level.get() >= (int8_t)OA_DbOutputLevel::OUTPUT_LEVEL_SEND_ALL) {
             return 0xFF;
         }
         break;
 
     case OA_DbItemImportance::Normal:
-        if (_output_level >= OutputLevel::HIGH_AND_NORMAL) {
+        if (_output_level.get() >= (int8_t)OA_DbOutputLevel::OUTPUT_LEVEL_SEND_HIGH_AND_NORMAL) {
             return 0xFF;
         }
         break;
 
     case OA_DbItemImportance::High:
-        if (_output_level >= OutputLevel::HIGH) {
+        if (_output_level.get() >= (int8_t)OA_DbOutputLevel::OUTPUT_LEVEL_SEND_HIGH) {
             return 0xFF;
         }
         break;
@@ -250,29 +226,7 @@ uint8_t AP_OADatabase::get_send_to_gcs_flags(const OA_DbItemImportance importanc
     return 0x0;
 }
 
-// Return true if item A is likely the same as item B
-bool AP_OADatabase::item_match(const OA_DbItem& A, const OA_DbItem& B) const
-{
-    // Items must be from the same source to match
-    if (A.source != B.source) {
-        return false;
-    }
-
-    switch (A.source) {
-        case OA_DbItem::Source::AIS:
-            // Check IDs
-            return A.id == B.id;
-
-        case OA_DbItem::Source::proximity:
-            // Check if close
-            const float distance_sq = (A.pos - B.pos).length_squared();
-            return distance_sq < sq(MAX(A.radius, B.radius));
-    }
-
-    return false;
-}
-
-// returns true when there's more work in the queue to do
+// returns true when there's more work inthe queue to do
 bool AP_OADatabase::process_queue()
 {
     if (!healthy()) {
@@ -306,8 +260,8 @@ bool AP_OADatabase::process_queue()
         // compare item to all items in database. If found a similar item, update the existing, else add it as a new one
         bool found = false;
         for (uint16_t i=0; i<_database.count; i++) {
-            if (item_match(_database.items[i], item)) {
-                database_item_refresh(_database.items[i], item);
+            if (is_close_to_item_in_database(i, item)) {
+                database_item_refresh(i, item.timestamp_ms, item.radius);
                 found = true;
                 break;
             }
@@ -353,23 +307,23 @@ void AP_OADatabase::database_item_remove(const uint16_t index)
     }
 }
 
-void AP_OADatabase::database_item_refresh(OA_DbItem &current_item, const OA_DbItem &new_item) const
+void AP_OADatabase::database_item_refresh(const uint16_t index, const uint32_t timestamp_ms, const float radius)
 {
+    if (index >= _database.count) {
+        // index out of range
+        return;
+    }
+
     const bool is_different =
-            (!is_equal(current_item.radius, new_item.radius)) ||
-            (new_item.timestamp_ms - current_item.timestamp_ms >= 500);
+            (!is_equal(_database.items[index].radius, radius)) ||
+            (timestamp_ms - _database.items[index].timestamp_ms >= 500);
 
     if (is_different) {
         // update timestamp and radius on close object so it stays around longer
         // and trigger resending to GCS
-        current_item.timestamp_ms = new_item.timestamp_ms;
-        current_item.radius = new_item.radius;
-        current_item.send_to_gcs = get_send_to_gcs_flags(current_item.importance);
-
-        if (current_item.source == OA_DbItem::Source::AIS) {
-            // Update position for AIS items, these tend to be large and update slowly
-            current_item.pos = new_item.pos;
-        }
+        _database.items[index].timestamp_ms = timestamp_ms;
+        _database.items[index].radius = radius;
+        _database.items[index].send_to_gcs = get_send_to_gcs_flags(_database.items[index].importance);
     }
 }
 
@@ -395,7 +349,18 @@ void AP_OADatabase::database_items_remove_all_expired()
     }
 }
 
-#if HAL_GCS_ENABLED
+// returns true if a similar object already exists in database. When true, the object timer is also reset
+bool AP_OADatabase::is_close_to_item_in_database(const uint16_t index, const OA_DbItem &item) const
+{
+    if (index >= _database.count) {
+        // index out of range
+        return false;
+    }
+
+    const float distance_sq = (_database.items[index].pos - item.pos).length_squared();
+    return ((distance_sq < sq(item.radius)) || (distance_sq < sq(_database.items[index].radius)));
+}
+
 // send ADSB_VEHICLE mavlink messages
 void AP_OADatabase::send_adsb_vehicle(mavlink_channel_t chan, uint16_t interval_ms)
 {
@@ -403,7 +368,7 @@ void AP_OADatabase::send_adsb_vehicle(mavlink_channel_t chan, uint16_t interval_
     static_assert(MAVLINK_COMM_NUM_BUFFERS <= sizeof(OA_DbItem::send_to_gcs) * 8,
                   "AP_OADatabase's OA_DBItem.send_to_gcs bitmask must be large enough to hold MAVLINK_COMM_NUM_BUFFERS");
 
-    if ((_output_level <= OutputLevel::NONE) || !healthy()) {
+    if ((_output_level.get() <= (int8_t)OA_DbOutputLevel::OUTPUT_LEVEL_DISABLED) || !healthy()) {
         return;
     }
 
@@ -440,7 +405,7 @@ void AP_OADatabase::send_adsb_vehicle(mavlink_channel_t chan, uint16_t interval_
         }
 
         // convert object's position as an offset from EKF origin to Location
-        const Location item_loc(Vector3f{_database.items[idx].pos.x * 100.0f, _database.items[idx].pos.y * 100.0f, _database.items[idx].pos.z * 100.0f}, Location::AltFrame::ABOVE_ORIGIN);
+        const Location item_loc(Vector3f(_database.items[idx].pos.x * 100.0f, _database.items[idx].pos.y * 100.0f, _database.items[idx].pos.z * 100.0f), Location::AltFrame::ABOVE_ORIGIN);
 
         mavlink_msg_adsb_vehicle_send(chan,
             idx,
@@ -500,7 +465,6 @@ void AP_OADatabase::send_adsb_vehicle(mavlink_channel_t chan, uint16_t interval_
         num_sent++;
     }
 }
-#endif  // HAL_GCS_ENABLED
 
 // singleton instance
 AP_OADatabase *AP_OADatabase::_singleton;
@@ -512,5 +476,3 @@ AP_OADatabase *oadatabase()
 }
 
 }
-
-#endif  // AP_OADATABASE_ENABLED

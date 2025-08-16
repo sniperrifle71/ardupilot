@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <cmath>
 
+#define AC_PI_2D_FILT_HZ_DEFAULT  20.0f   // default input filter frequency
 #define AC_PI_2D_FILT_HZ_MIN      0.01f   // minimum input filter frequency
 
 /// @class	AC_PI_2D
@@ -41,11 +42,14 @@ public:
     // reset_filter - input filter will be reset to the next value provided to set_input()
     void reset_filter();
 
-    // Loads controller configuration from EEPROM, including gains and filter frequencies. (not used)
+    // load gain from eeprom
     void load_gains();
 
-    // Saves controller configuration from EEPROM, including gains and filter frequencies. (not used)
+    // save gain to eeprom
     void save_gains();
+
+    /// operator function call for easy initialisation
+    void operator() (float p, float i, float imaxval, float input_filt_hz, float dt);
 
     // get accessors
     AP_Float &kP() { return _kp; }
@@ -84,14 +88,8 @@ private:
     } _flags;
 
     // internal variables
-    float _dt;              // time step in seconds
+    float _dt;              // timestep in seconds
     Vector2f _integrator;   // integrator value
     Vector2f _input;        // last input for derivative
     float _filt_alpha;      // input filter alpha
-
-    const float default_kp;
-    const float default_ki;
-    const float default_imax;
-    const float default_filt_hz;
-
 };

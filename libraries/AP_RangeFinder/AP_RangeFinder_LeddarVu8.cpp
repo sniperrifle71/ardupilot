@@ -15,8 +15,6 @@
 
 #include "AP_RangeFinder_LeddarVu8.h"
 
-#if AP_RANGEFINDER_LEDDARVU8_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 #include <ctype.h>
 
@@ -26,12 +24,12 @@ extern const AP_HAL::HAL& hal;
 // https://autonomoustuff.com/product/leddartech-vu8/
 
 #define LEDDARVU8_ADDR_DEFAULT              0x01        // modbus default device id
-#define LEDDARVU8_DIST_MAX                  185.00      // maximum possible distance reported by lidar
-#define LEDDARVU8_OUT_OF_RANGE_ADD          1.00        // add this many metres to out-of-range values
+#define LEDDARVU8_DIST_MAX_CM               18500       // maximum possible distance reported by lidar
+#define LEDDARVU8_OUT_OF_RANGE_ADD_CM       100         // add this many cm to out-of-range values
 #define LEDDARVU8_TIMEOUT_MS                200         // timeout in milliseconds if no distance messages received
 
 // distance returned in reading_cm, signal_ok is set to true if sensor reports a strong signal
-bool AP_RangeFinder_LeddarVu8::get_reading(float &reading_m)
+bool AP_RangeFinder_LeddarVu8::get_reading(uint16_t &reading_cm)
 {
     if (uart == nullptr) {
         return false;
@@ -51,12 +49,13 @@ bool AP_RangeFinder_LeddarVu8::get_reading(float &reading_m)
     bool latest_dist_valid = false;
 
     // read any available characters from the lidar
-    for (auto i=0; i<8192; i++) {
-        uint8_t b;
-        if (!uart->read(b)) {
-            break;
+    int16_t nbytes = uart->available();
+    while (nbytes-- > 0) {
+        int16_t r = uart->read();
+        if (r < 0) {
+            continue;
         }
-        if (parse_byte(b, latest_dist_valid, latest_dist_cm)) {
+        if (parse_byte((uint8_t)r, latest_dist_valid, latest_dist_cm)) {
             if (latest_dist_valid) {
                 sum_cm += latest_dist_cm;
                 count++;
@@ -74,11 +73,11 @@ bool AP_RangeFinder_LeddarVu8::get_reading(float &reading_m)
 
         if (count > 0) {
             // return average distance of readings
-            reading_m = (sum_cm * 0.01f) / count;
+            reading_cm = sum_cm / count;
         } else {
             // if only out of range readings return larger of
             // driver defined maximum range for the model and user defined max range + 1m
-            reading_m = MAX(LEDDARVU8_DIST_MAX, max_distance() + LEDDARVU8_OUT_OF_RANGE_ADD);
+            reading_cm = MAX(LEDDARVU8_DIST_MAX_CM, max_distance_cm() + LEDDARVU8_OUT_OF_RANGE_ADD_CM);
         }
         return true;
     }
@@ -203,5 +202,3 @@ bool AP_RangeFinder_LeddarVu8::parse_byte(uint8_t b, bool &valid_reading, uint16
     valid_reading = false;
     return false;
 }
-
-#endif  // AP_RANGEFINDER_LEDDARVU8_ENABLED

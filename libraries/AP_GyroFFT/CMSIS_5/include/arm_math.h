@@ -367,12 +367,6 @@ extern "C"
   /* -1 to +1 is divided into 360 values so total spacing is (2/360) */
 #define INPUT_SPACING         0xB60B61
 
-  /*
-
-  former 'arm_status' is changed to 'cmsis_arm_status' because the same
-  name symbol is generated from avsuas.xml thus the global one gets shadowed.
-
-  */
 
   /**
    * @brief Error status returned by some functions in the library.
@@ -387,7 +381,7 @@ extern "C"
     ARM_MATH_NANINF         = -4,        /**< Not-a-number (NaN) or infinity is generated */
     ARM_MATH_SINGULAR       = -5,        /**< Input matrix is singular and cannot be inverted */
     ARM_MATH_TEST_FAILURE   = -6         /**< Test Failed */
-  } cmsis_arm_status;
+  } arm_status;
 
   /**
    * @brief 8-bit fractional data type in 1.7 format.
@@ -1302,7 +1296,7 @@ static inline int32x4_t __arm_vec_sqrt_q31_neon(int32x4_t vec)
    * <code>ARM_MATH_SUCCESS</code> if initialization was successful or
    * <code>ARM_MATH_ARGUMENT_ERROR</code> if <code>numTaps</code> is not a supported value.
    */
-  cmsis_arm_status arm_fir_init_q15(
+  arm_status arm_fir_init_q15(
         arm_fir_instance_q15 * S,
         uint16_t numTaps,
   const q15_t * pCoeffs,
@@ -1567,7 +1561,7 @@ static inline int32x4_t __arm_vec_sqrt_q31_neon(int32x4_t vec)
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_add_f32(
+arm_status arm_mat_add_f32(
   const arm_matrix_instance_f32 * pSrcA,
   const arm_matrix_instance_f32 * pSrcB,
         arm_matrix_instance_f32 * pDst);
@@ -1580,7 +1574,7 @@ cmsis_arm_status arm_mat_add_f32(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_add_q15(
+arm_status arm_mat_add_q15(
   const arm_matrix_instance_q15 * pSrcA,
   const arm_matrix_instance_q15 * pSrcB,
         arm_matrix_instance_q15 * pDst);
@@ -1593,7 +1587,7 @@ cmsis_arm_status arm_mat_add_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_add_q31(
+arm_status arm_mat_add_q31(
   const arm_matrix_instance_q31 * pSrcA,
   const arm_matrix_instance_q31 * pSrcB,
         arm_matrix_instance_q31 * pDst);
@@ -1606,7 +1600,7 @@ cmsis_arm_status arm_mat_add_q31(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_cmplx_mult_f32(
+arm_status arm_mat_cmplx_mult_f32(
   const arm_matrix_instance_f32 * pSrcA,
   const arm_matrix_instance_f32 * pSrcB,
         arm_matrix_instance_f32 * pDst);
@@ -1619,7 +1613,7 @@ cmsis_arm_status arm_mat_cmplx_mult_f32(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_cmplx_mult_q15(
+arm_status arm_mat_cmplx_mult_q15(
   const arm_matrix_instance_q15 * pSrcA,
   const arm_matrix_instance_q15 * pSrcB,
         arm_matrix_instance_q15 * pDst,
@@ -1633,7 +1627,7 @@ cmsis_arm_status arm_mat_cmplx_mult_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_cmplx_mult_q31(
+arm_status arm_mat_cmplx_mult_q31(
   const arm_matrix_instance_q31 * pSrcA,
   const arm_matrix_instance_q31 * pSrcB,
         arm_matrix_instance_q31 * pDst);
@@ -1645,7 +1639,7 @@ cmsis_arm_status arm_mat_cmplx_mult_q31(
    * @return    The function returns either  <code>ARM_MATH_SIZE_MISMATCH</code>
    * or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_trans_f32(
+arm_status arm_mat_trans_f32(
   const arm_matrix_instance_f32 * pSrc,
         arm_matrix_instance_f32 * pDst);
 
@@ -1656,7 +1650,7 @@ cmsis_arm_status arm_mat_trans_f32(
    * @return    The function returns either  <code>ARM_MATH_SIZE_MISMATCH</code>
    * or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_trans_q15(
+arm_status arm_mat_trans_q15(
   const arm_matrix_instance_q15 * pSrc,
         arm_matrix_instance_q15 * pDst);
 
@@ -1667,7 +1661,7 @@ cmsis_arm_status arm_mat_trans_q15(
    * @return    The function returns either  <code>ARM_MATH_SIZE_MISMATCH</code>
    * or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_trans_q31(
+arm_status arm_mat_trans_q31(
   const arm_matrix_instance_q31 * pSrc,
         arm_matrix_instance_q31 * pDst);
 
@@ -1679,7 +1673,7 @@ cmsis_arm_status arm_mat_trans_q31(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_mult_f32(
+arm_status arm_mat_mult_f32(
   const arm_matrix_instance_f32 * pSrcA,
   const arm_matrix_instance_f32 * pSrcB,
         arm_matrix_instance_f32 * pDst);
@@ -1693,7 +1687,7 @@ cmsis_arm_status arm_mat_mult_f32(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_mult_q15(
+arm_status arm_mat_mult_q15(
   const arm_matrix_instance_q15 * pSrcA,
   const arm_matrix_instance_q15 * pSrcB,
         arm_matrix_instance_q15 * pDst,
@@ -1708,7 +1702,7 @@ cmsis_arm_status arm_mat_mult_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_mult_fast_q15(
+arm_status arm_mat_mult_fast_q15(
   const arm_matrix_instance_q15 * pSrcA,
   const arm_matrix_instance_q15 * pSrcB,
         arm_matrix_instance_q15 * pDst,
@@ -1722,7 +1716,7 @@ cmsis_arm_status arm_mat_mult_fast_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_mult_q31(
+arm_status arm_mat_mult_q31(
   const arm_matrix_instance_q31 * pSrcA,
   const arm_matrix_instance_q31 * pSrcB,
         arm_matrix_instance_q31 * pDst);
@@ -1735,7 +1729,7 @@ cmsis_arm_status arm_mat_mult_q31(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_mult_fast_q31(
+arm_status arm_mat_mult_fast_q31(
   const arm_matrix_instance_q31 * pSrcA,
   const arm_matrix_instance_q31 * pSrcB,
         arm_matrix_instance_q31 * pDst);
@@ -1748,7 +1742,7 @@ cmsis_arm_status arm_mat_mult_fast_q31(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_sub_f32(
+arm_status arm_mat_sub_f32(
   const arm_matrix_instance_f32 * pSrcA,
   const arm_matrix_instance_f32 * pSrcB,
         arm_matrix_instance_f32 * pDst);
@@ -1761,7 +1755,7 @@ cmsis_arm_status arm_mat_sub_f32(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_sub_q15(
+arm_status arm_mat_sub_q15(
   const arm_matrix_instance_q15 * pSrcA,
   const arm_matrix_instance_q15 * pSrcB,
         arm_matrix_instance_q15 * pDst);
@@ -1774,7 +1768,7 @@ cmsis_arm_status arm_mat_sub_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_sub_q31(
+arm_status arm_mat_sub_q31(
   const arm_matrix_instance_q31 * pSrcA,
   const arm_matrix_instance_q31 * pSrcB,
         arm_matrix_instance_q31 * pDst);
@@ -1787,7 +1781,7 @@ cmsis_arm_status arm_mat_sub_q31(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_scale_f32(
+arm_status arm_mat_scale_f32(
   const arm_matrix_instance_f32 * pSrc,
         float32_t scale,
         arm_matrix_instance_f32 * pDst);
@@ -1801,7 +1795,7 @@ cmsis_arm_status arm_mat_scale_f32(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_scale_q15(
+arm_status arm_mat_scale_q15(
   const arm_matrix_instance_q15 * pSrc,
         q15_t scaleFract,
         int32_t shift,
@@ -1816,7 +1810,7 @@ cmsis_arm_status arm_mat_scale_q15(
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
-cmsis_arm_status arm_mat_scale_q31(
+arm_status arm_mat_scale_q31(
   const arm_matrix_instance_q31 * pSrc,
         q31_t scaleFract,
         int32_t shift,
@@ -2088,7 +2082,7 @@ void arm_mat_init_f32(
   } arm_cfft_radix2_instance_q15;
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix2_init_q15(
+  arm_status arm_cfft_radix2_init_q15(
         arm_cfft_radix2_instance_q15 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2115,7 +2109,7 @@ void arm_mat_init_f32(
   } arm_cfft_radix4_instance_q15;
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix4_init_q15(
+  arm_status arm_cfft_radix4_init_q15(
         arm_cfft_radix4_instance_q15 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2141,7 +2135,7 @@ void arm_mat_init_f32(
   } arm_cfft_radix2_instance_q31;
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix2_init_q31(
+  arm_status arm_cfft_radix2_init_q31(
         arm_cfft_radix2_instance_q31 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2172,7 +2166,7 @@ void arm_mat_init_f32(
         q31_t * pSrc);
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix4_init_q31(
+  arm_status arm_cfft_radix4_init_q31(
         arm_cfft_radix4_instance_q31 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2194,7 +2188,7 @@ void arm_mat_init_f32(
   } arm_cfft_radix2_instance_f32;
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix2_init_f32(
+  arm_status arm_cfft_radix2_init_f32(
         arm_cfft_radix2_instance_f32 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2221,7 +2215,7 @@ void arm_mat_init_f32(
   } arm_cfft_radix4_instance_f32;
 
 /* Deprecated */
-  cmsis_arm_status arm_cfft_radix4_init_f32(
+  arm_status arm_cfft_radix4_init_f32(
         arm_cfft_radix4_instance_f32 * S,
         uint16_t fftLen,
         uint8_t ifftFlag,
@@ -2297,7 +2291,7 @@ void arm_cfft_q31(
     const arm_cfft_instance_q15 *pCfft;       /**< points to the complex FFT instance. */
   } arm_rfft_instance_q15;
 
-  cmsis_arm_status arm_rfft_init_q15(
+  arm_status arm_rfft_init_q15(
         arm_rfft_instance_q15 * S,
         uint32_t fftLenReal,
         uint32_t ifftFlagR,
@@ -2322,7 +2316,7 @@ void arm_cfft_q31(
     const arm_cfft_instance_q31 *pCfft;         /**< points to the complex FFT instance. */
   } arm_rfft_instance_q31;
 
-  cmsis_arm_status arm_rfft_init_q31(
+  arm_status arm_rfft_init_q31(
         arm_rfft_instance_q31 * S,
         uint32_t fftLenReal,
         uint32_t ifftFlagR,
@@ -2348,7 +2342,7 @@ void arm_cfft_q31(
           arm_cfft_radix4_instance_f32 *pCfft;        /**< points to the complex FFT instance. */
   } arm_rfft_instance_f32;
 
-  cmsis_arm_status arm_rfft_init_f32(
+  arm_status arm_rfft_init_f32(
         arm_rfft_instance_f32 * S,
         arm_cfft_radix4_instance_f32 * S_CFFT,
         uint32_t fftLenReal,
@@ -2370,25 +2364,25 @@ typedef struct
     const float32_t * pTwiddleRFFT;        /**< Twiddle factors real stage  */
   } arm_rfft_fast_instance_f32 ;
 
-cmsis_arm_status arm_rfft_fast_init_f32 (
+arm_status arm_rfft_fast_init_f32 (
          arm_rfft_fast_instance_f32 * S,
          uint16_t fftLen);
 
-cmsis_arm_status arm_rfft_32_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_32_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_64_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_64_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_128_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_128_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_256_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_256_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_512_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_512_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_1024_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_1024_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_2048_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_2048_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
-cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
+arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
 
 
   void arm_rfft_fast_f32(
@@ -2419,9 +2413,9 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]     N          length of the DCT4.
    * @param[in]     Nby2       half of the length of the DCT4.
    * @param[in]     normalize  normalizing factor.
-   * @return      cmsis_arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>fftLenReal</code> is not a supported transform length.
+   * @return      arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>fftLenReal</code> is not a supported transform length.
    */
-  cmsis_arm_status arm_dct4_init_f32(
+  arm_status arm_dct4_init_f32(
         arm_dct4_instance_f32 * S,
         arm_rfft_instance_f32 * S_RFFT,
         arm_cfft_radix4_instance_f32 * S_CFFT,
@@ -2465,9 +2459,9 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]     N          length of the DCT4.
    * @param[in]     Nby2       half of the length of the DCT4.
    * @param[in]     normalize  normalizing factor.
-   * @return      cmsis_arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>N</code> is not a supported transform length.
+   * @return      arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>N</code> is not a supported transform length.
    */
-  cmsis_arm_status arm_dct4_init_q31(
+  arm_status arm_dct4_init_q31(
         arm_dct4_instance_q31 * S,
         arm_rfft_instance_q31 * S_RFFT,
         arm_cfft_radix4_instance_q31 * S_CFFT,
@@ -2511,9 +2505,9 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]     N          length of the DCT4.
    * @param[in]     Nby2       half of the length of the DCT4.
    * @param[in]     normalize  normalizing factor.
-   * @return      cmsis_arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>N</code> is not a supported transform length.
+   * @return      arm_status function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_ARGUMENT_ERROR if <code>N</code> is not a supported transform length.
    */
-  cmsis_arm_status arm_dct4_init_q15(
+  arm_status arm_dct4_init_q15(
         arm_dct4_instance_q15 * S,
         arm_rfft_instance_q15 * S_RFFT,
         arm_cfft_radix4_instance_q15 * S_CFFT,
@@ -3221,7 +3215,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_f32(
+  arm_status arm_conv_partial_f32(
   const float32_t * pSrcA,
         uint32_t srcALen,
   const float32_t * pSrcB,
@@ -3244,7 +3238,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  pScratch2   points to scratch buffer of size min(srcALen, srcBLen).
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_opt_q15(
+  arm_status arm_conv_partial_opt_q15(
   const q15_t * pSrcA,
         uint32_t srcALen,
   const q15_t * pSrcB,
@@ -3267,7 +3261,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_q15(
+  arm_status arm_conv_partial_q15(
   const q15_t * pSrcA,
         uint32_t srcALen,
   const q15_t * pSrcB,
@@ -3288,7 +3282,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_fast_q15(
+  arm_status arm_conv_partial_fast_q15(
   const q15_t * pSrcA,
         uint32_t srcALen,
   const q15_t * pSrcB,
@@ -3311,7 +3305,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  pScratch2   points to scratch buffer of size min(srcALen, srcBLen).
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_fast_opt_q15(
+  arm_status arm_conv_partial_fast_opt_q15(
   const q15_t * pSrcA,
         uint32_t srcALen,
   const q15_t * pSrcB,
@@ -3334,7 +3328,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_q31(
+  arm_status arm_conv_partial_q31(
   const q31_t * pSrcA,
         uint32_t srcALen,
   const q31_t * pSrcB,
@@ -3355,7 +3349,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_fast_q31(
+  arm_status arm_conv_partial_fast_q31(
   const q31_t * pSrcA,
         uint32_t srcALen,
   const q31_t * pSrcB,
@@ -3378,7 +3372,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  pScratch2   points to scratch buffer (of type q15_t) of size min(srcALen, srcBLen).
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_opt_q7(
+  arm_status arm_conv_partial_opt_q7(
   const q7_t * pSrcA,
         uint32_t srcALen,
   const q7_t * pSrcB,
@@ -3401,7 +3395,7 @@ cmsis_arm_status arm_rfft_4096_fast_init_f32 ( arm_rfft_fast_instance_f32 * S );
    * @param[in]  numPoints   is the number of output points to be computed.
    * @return  Returns either ARM_MATH_SUCCESS if the function completed correctly or ARM_MATH_ARGUMENT_ERROR if the requested subset is not in the range [0 srcALen+srcBLen-2].
    */
-  cmsis_arm_status arm_conv_partial_q7(
+  arm_status arm_conv_partial_q7(
   const q7_t * pSrcA,
         uint32_t srcALen,
   const q7_t * pSrcB,
@@ -3471,7 +3465,7 @@ void arm_fir_decimate_f32(
                    - \ref ARM_MATH_SUCCESS      : Operation successful
                    - \ref ARM_MATH_LENGTH_ERROR : <code>blockSize</code> is not a multiple of <code>M</code>
  */
-cmsis_arm_status arm_fir_decimate_init_f32(
+arm_status arm_fir_decimate_init_f32(
         arm_fir_decimate_instance_f32 * S,
         uint16_t numTaps,
         uint8_t M,
@@ -3519,7 +3513,7 @@ cmsis_arm_status arm_fir_decimate_init_f32(
    * @return    The function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_LENGTH_ERROR if
    * <code>blockSize</code> is not a multiple of <code>M</code>.
    */
-  cmsis_arm_status arm_fir_decimate_init_q15(
+  arm_status arm_fir_decimate_init_q15(
         arm_fir_decimate_instance_q15 * S,
         uint16_t numTaps,
         uint8_t M,
@@ -3566,7 +3560,7 @@ cmsis_arm_status arm_fir_decimate_init_f32(
    * @return    The function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_LENGTH_ERROR if
    * <code>blockSize</code> is not a multiple of <code>M</code>.
    */
-  cmsis_arm_status arm_fir_decimate_init_q31(
+  arm_status arm_fir_decimate_init_q31(
         arm_fir_decimate_instance_q31 * S,
         uint16_t numTaps,
         uint8_t M,
@@ -3634,7 +3628,7 @@ cmsis_arm_status arm_fir_decimate_init_f32(
    * @return        The function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_LENGTH_ERROR if
    * the filter length <code>numTaps</code> is not a multiple of the interpolation factor <code>L</code>.
    */
-  cmsis_arm_status arm_fir_interpolate_init_q15(
+  arm_status arm_fir_interpolate_init_q15(
         arm_fir_interpolate_instance_q15 * S,
         uint8_t L,
         uint16_t numTaps,
@@ -3668,7 +3662,7 @@ cmsis_arm_status arm_fir_decimate_init_f32(
    * @return        The function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_LENGTH_ERROR if
    * the filter length <code>numTaps</code> is not a multiple of the interpolation factor <code>L</code>.
    */
-  cmsis_arm_status arm_fir_interpolate_init_q31(
+  arm_status arm_fir_interpolate_init_q31(
         arm_fir_interpolate_instance_q31 * S,
         uint8_t L,
         uint16_t numTaps,
@@ -3702,7 +3696,7 @@ cmsis_arm_status arm_fir_decimate_init_f32(
    * @return        The function returns ARM_MATH_SUCCESS if initialization is successful or ARM_MATH_LENGTH_ERROR if
    * the filter length <code>numTaps</code> is not a multiple of the interpolation factor <code>L</code>.
    */
-  cmsis_arm_status arm_fir_interpolate_init_f32(
+  arm_status arm_fir_interpolate_init_f32(
         arm_fir_interpolate_instance_f32 * S,
         uint8_t L,
         uint16_t numTaps,
@@ -5077,7 +5071,7 @@ __STATIC_FORCEINLINE q15_t arm_pid_q15(
    * @return The function returns ARM_MATH_SIZE_MISMATCH, if the dimensions do not match.
    * If the input matrix is singular (does not have an inverse), then the algorithm terminates and returns error status ARM_MATH_SINGULAR.
    */
-  cmsis_arm_status arm_mat_inverse_f32(
+  arm_status arm_mat_inverse_f32(
   const arm_matrix_instance_f32 * src,
   arm_matrix_instance_f32 * dst);
 
@@ -5089,7 +5083,7 @@ __STATIC_FORCEINLINE q15_t arm_pid_q15(
    * @return The function returns ARM_MATH_SIZE_MISMATCH, if the dimensions do not match.
    * If the input matrix is singular (does not have an inverse), then the algorithm terminates and returns error status ARM_MATH_SINGULAR.
    */
-  cmsis_arm_status arm_mat_inverse_f64(
+  arm_status arm_mat_inverse_f64(
   const arm_matrix_instance_f64 * src,
   arm_matrix_instance_f64 * dst);
 
@@ -5852,7 +5846,7 @@ __STATIC_FORCEINLINE void arm_inv_park_q31(
                    - \ref ARM_MATH_SUCCESS        : input value is positive
                    - \ref ARM_MATH_ARGUMENT_ERROR : input value is negative; *pOut is set to 0
  */
-__STATIC_FORCEINLINE cmsis_arm_status arm_sqrt_f32(
+__STATIC_FORCEINLINE arm_status arm_sqrt_f32(
   float32_t in,
   float32_t * pOut)
   {
@@ -5894,7 +5888,7 @@ __STATIC_FORCEINLINE cmsis_arm_status arm_sqrt_f32(
                    - \ref ARM_MATH_SUCCESS        : input value is positive
                    - \ref ARM_MATH_ARGUMENT_ERROR : input value is negative; *pOut is set to 0
  */
-cmsis_arm_status arm_sqrt_q31(
+arm_status arm_sqrt_q31(
   q31_t in,
   q31_t * pOut);
 
@@ -5907,7 +5901,7 @@ cmsis_arm_status arm_sqrt_q31(
                    - \ref ARM_MATH_SUCCESS        : input value is positive
                    - \ref ARM_MATH_ARGUMENT_ERROR : input value is negative; *pOut is set to 0
  */
-cmsis_arm_status arm_sqrt_q15(
+arm_status arm_sqrt_q15(
   q15_t in,
   q15_t * pOut);
 

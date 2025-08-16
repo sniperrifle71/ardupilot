@@ -14,9 +14,6 @@
  */
 
 #include "AP_Beacon.h"
-
-#if AP_BEACON_ENABLED
-
 #include "AP_Beacon_Backend.h"
 #include "AP_Beacon_Pozyx.h"
 #include "AP_Beacon_Marvelmind.h"
@@ -24,13 +21,8 @@
 #include "AP_Beacon_SITL.h"
 
 #include <AP_Common/Location.h>
-#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL &hal;
-
-#ifndef AP_BEACON_MINIMUM_FENCE_BEACONS
-#define AP_BEACON_MINIMUM_FENCE_BEACONS 3
-#endif
 
 // table of user settable parameters
 const AP_Param::GroupInfo AP_Beacon::var_info[] = {
@@ -40,7 +32,7 @@ const AP_Param::GroupInfo AP_Beacon::var_info[] = {
     // @Description: What type of beacon based position estimation device is connected
     // @Values: 0:None,1:Pozyx,2:Marvelmind,3:Nooploop,10:SITL
     // @User: Advanced
-    AP_GROUPINFO_FLAGS("_TYPE",    0, AP_Beacon, _type, 0, AP_PARAM_FLAG_ENABLE),
+    AP_GROUPINFO("_TYPE",    0, AP_Beacon, _type, 0),
 
     // @Param: _LATITUDE
     // @DisplayName: Beacon origin's latitude
@@ -81,7 +73,8 @@ const AP_Param::GroupInfo AP_Beacon::var_info[] = {
     AP_GROUPEND
 };
 
-AP_Beacon::AP_Beacon()
+AP_Beacon::AP_Beacon(AP_SerialManager &_serial_manager) :
+    serial_manager(_serial_manager)
 {
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     if (_singleton != nullptr) {
@@ -101,30 +94,24 @@ void AP_Beacon::init(void)
     }
 
     // create backend
-    switch ((Type)_type) {
-    case Type::Pozyx:
-        _driver = NEW_NOTHROW AP_Beacon_Pozyx(*this);
-        break;
-    case Type::Marvelmind:
-        _driver = NEW_NOTHROW AP_Beacon_Marvelmind(*this);
-        break;
-    case Type::Nooploop:
-        _driver = NEW_NOTHROW AP_Beacon_Nooploop(*this);
-        break;
-#if AP_BEACON_SITL_ENABLED
-    case Type::SITL:
-        _driver = NEW_NOTHROW AP_Beacon_SITL(*this);
-        break;
-#endif
-    case Type::None:
-        break;
+    if (_type == AP_BeaconType_Pozyx) {
+        _driver = new AP_Beacon_Pozyx(*this, serial_manager);
+    } else if (_type == AP_BeaconType_Marvelmind) {
+        _driver = new AP_Beacon_Marvelmind(*this, serial_manager);
+    } else if (_type == AP_BeaconType_Nooploop) {
+        _driver = new AP_Beacon_Nooploop(*this, serial_manager);
     }
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    if (_type == AP_BeaconType_SITL) {
+        _driver = new AP_Beacon_SITL(*this);
+    }
+#endif
 }
 
 // return true if beacon feature is enabled
 bool AP_Beacon::enabled(void) const
 {
-    return (_type != Type::None);
+    return (_type != AP_BeaconType_None);
 }
 
 // return true if sensor is basically healthy (we are receiving data)
@@ -161,12 +148,10 @@ bool AP_Beacon::get_origin(Location &origin_loc) const
     }
 
     // return origin
-    origin_loc = Location{
-        int32_t(origin_lat * 1.0e7f),
-        int32_t(origin_lon * 1.0e7f),
-        int32_t(origin_alt * 100),
-        Location::AltFrame::ABSOLUTE
-    };
+    origin_loc = {};
+    origin_loc.lat = origin_lat * 1.0e7f;
+    origin_loc.lng = origin_lon * 1.0e7f;
+    origin_loc.alt = origin_alt * 100;
 
     return true;
 }
@@ -248,7 +233,7 @@ Vector3f AP_Beacon::beacon_position(uint8_t beacon_instance) const
 // return last update time from beacon in milliseconds
 uint32_t AP_Beacon::beacon_last_update_ms(uint8_t beacon_instance) const
 {
-    if (_type == Type::None || beacon_instance >= num_beacons) {
+    if (_type == AP_BeaconType_None || beacon_instance >= num_beacons) {
         return 0;
     }
     return beacon_state[beacon_instance].distance_update_ms;
@@ -400,37 +385,9 @@ const Vector2f* AP_Beacon::get_boundary_points(uint16_t& num_points) const
 // check if the device is ready
 bool AP_Beacon::device_ready(void) const
 {
-    return ((_driver != nullptr) && (_type != Type::None));
+    return ((_driver != nullptr) && (_type != AP_BeaconType_None));
 }
 
-#if HAL_LOGGING_ENABLED
-// Write beacon sensor (position) data
-void AP_Beacon::log()
-{
-    if (!enabled()) {
-        return;
-    }
-    // position
-    Vector3f pos;
-    float accuracy = 0.0f;
-    get_vehicle_position_ned(pos, accuracy);
-
-    const struct log_Beacon pkt_beacon{
-       LOG_PACKET_HEADER_INIT(LOG_BEACON_MSG),
-       time_us         : AP_HAL::micros64(),
-       health          : (uint8_t)healthy(),
-       count           : (uint8_t)count(),
-       dist0           : beacon_distance(0),
-       dist1           : beacon_distance(1),
-       dist2           : beacon_distance(2),
-       dist3           : beacon_distance(3),
-       posx            : pos.x,
-       posy            : pos.y,
-       posz            : pos.z
-    };
-    AP::logger().WriteBlock(&pkt_beacon, sizeof(pkt_beacon));
-}
-#endif
 
 // singleton instance
 AP_Beacon *AP_Beacon::_singleton;
@@ -443,5 +400,3 @@ AP_Beacon *beacon()
 }
 
 }
-
-#endif

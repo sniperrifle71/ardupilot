@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# encoding: utf-8
 
 def build(bld):
     bld.ap_stlib(
@@ -18,8 +19,8 @@ def build(bld):
     )
 
     # only valid to build with no GCS and no scripting
-    if '-DHAL_GCS_ENABLED=0' in bld.env.CXXFLAGS and 'AP_SCRIPTING_ENABLED=1' not in bld.env.DEFINES:
+    if '-DHAL_NO_GCS=1' in bld.env.CXXFLAGS and 'ENABLE_SCRIPTING=1' not in bld.env.DEFINES:
         bld.ap_program(
-            program_groups=['tool'],
+            program_groups=['tools'],
             use='AP_DAL_libs',
         )

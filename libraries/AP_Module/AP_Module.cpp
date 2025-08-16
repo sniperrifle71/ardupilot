@@ -17,8 +17,6 @@
 
 #if AP_MODULE_SUPPORTED
 
-#include <AP_AHRS/AP_AHRS.h>
-
 /*
   support for external modules
  */
@@ -57,7 +55,7 @@ void AP_Module::module_scan(const char *path)
         void *s = dlsym(m, hook_names[i]);
         if (s != nullptr) {
             // found a hook in this module, add it to the list
-            struct hook_list *h = NEW_NOTHROW hook_list;
+            struct hook_list *h = new hook_list;
             if (h == nullptr) {
                 AP_HAL::panic("Failed to allocate hook for %s", hook_names[i]);
             }
@@ -137,7 +135,7 @@ void AP_Module::call_hook_setup_complete(void)
 /*
   call any AHRS_update hooks
 */
-void AP_Module::call_hook_AHRS_update(const AP_AHRS &ahrs)
+void AP_Module::call_hook_AHRS_update(const AP_AHRS_NavEKF &ahrs)
 {
 #if AP_MODULE_SUPPORTED
     if (hooks[HOOK_AHRS_UPDATE] == nullptr) {
@@ -167,9 +165,9 @@ void AP_Module::call_hook_AHRS_update(const AP_AHRS &ahrs)
     state.quat[2] = q[2];
     state.quat[3] = q[3];
 
-    state.eulers[0] = ahrs.get_roll_rad();
-    state.eulers[1] = ahrs.get_pitch_rad();
-    state.eulers[2] = ahrs.get_yaw_rad();
+    state.eulers[0] = ahrs.roll;
+    state.eulers[1] = ahrs.pitch;
+    state.eulers[2] = ahrs.yaw;
 
     Location loc;
     if (ahrs.get_origin(loc)) {
@@ -179,7 +177,7 @@ void AP_Module::call_hook_AHRS_update(const AP_AHRS &ahrs)
         state.origin.altitude = loc.alt*0.01f;
     }
 
-    if (ahrs.get_location(loc)) {
+    if (ahrs.get_position(loc)) {
         state.position.available = true;
         state.position.latitude = loc.lat;
         state.position.longitude = loc.lng;
@@ -187,7 +185,7 @@ void AP_Module::call_hook_AHRS_update(const AP_AHRS &ahrs)
     }
     
     Vector3f pos;
-    if (ahrs.get_relative_position_NED_origin_float(pos)) {
+    if (ahrs.get_relative_position_NED_origin(pos)) {
         state.relative_position[0] = pos[0];
         state.relative_position[1] = pos[1];
         state.relative_position[2] = pos[2];

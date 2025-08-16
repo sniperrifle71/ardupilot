@@ -22,9 +22,8 @@ float AnalogSource::read_latest() {
     return _v;
 }
 
-bool AnalogSource::set_pin(uint8_t p) {
-    return true;
-}
+void AnalogSource::set_pin(uint8_t p)
+{}
 
 AnalogIn::AnalogIn()
 {}
@@ -33,7 +32,7 @@ void AnalogIn::init()
 {}
 
 AP_HAL::AnalogSource* AnalogIn::channel(int16_t n) {
-    return NEW_NOTHROW AnalogSource(1.11);
+    return new AnalogSource(1.11);
 }
 
 float AnalogIn::board_voltage(void)

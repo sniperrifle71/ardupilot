@@ -13,9 +13,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <AP_HAL/AP_HAL.h>
 #include "AP_RangeFinder_GYUS42v2.h"
+#include <ctype.h>
 
-#if AP_RANGEFINDER_GYUS42V2_ENABLED
+extern const AP_HAL::HAL& hal;
 
 bool AP_RangeFinder_GYUS42v2::find_signature_in_buffer(uint8_t start)
 {
@@ -32,7 +34,7 @@ bool AP_RangeFinder_GYUS42v2::find_signature_in_buffer(uint8_t start)
 }
 
 // get_reading - read a value from the sensor
-bool AP_RangeFinder_GYUS42v2::get_reading(float &reading_m)
+bool AP_RangeFinder_GYUS42v2::get_reading(uint16_t &reading_cm)
 {
     if (uart == nullptr) {
         return false;
@@ -63,10 +65,8 @@ bool AP_RangeFinder_GYUS42v2::get_reading(float &reading_m)
         return false;
     }
 
-    reading_m = (buffer[4] << 8 | buffer[5]) * 0.01f;
+    reading_cm = buffer[4] << 8 | buffer[5];
     buffer_used = 0;
 
     return true;
 }
-
-#endif  // AP_RANGEFINDER_GYUS42V2_ENABLED

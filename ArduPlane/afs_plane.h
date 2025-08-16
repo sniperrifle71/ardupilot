@@ -18,7 +18,7 @@
   advanced failsafe support for plane
  */
 
-#if AP_ADVANCEDFAILSAFE_ENABLED
+#if ADVANCED_FAILSAFE == ENABLED
 #include <AP_AdvancedFailsafe/AP_AdvancedFailsafe.h>
 
 /*
@@ -27,8 +27,7 @@
 class AP_AdvancedFailsafe_Plane : public AP_AdvancedFailsafe
 {
 public:
-
-    using AP_AdvancedFailsafe::AP_AdvancedFailsafe;
+    AP_AdvancedFailsafe_Plane(AP_Mission &_mission);
 
     // called to set all outputs to termination state
     void terminate_vehicle(void) override;
@@ -39,9 +38,7 @@ protected:
 
     // return the AFS mapped control mode
     enum control_mode afs_mode(void) override;
-
-    //to force entering auto mode when datalink loss 
-    void set_mode_auto(void) override;
 };
 
-#endif // AP_ADVANCEDFAILSAFE_ENABLED
+#endif // ADVANCED_FAILSAFE
+

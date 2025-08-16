@@ -8,7 +8,8 @@ public:
     AP_Arming_Sub() : AP_Arming() { }
 
     /* Do not allow copies */
-    CLASS_NO_COPY(AP_Arming_Sub);
+    AP_Arming_Sub(const AP_Arming_Sub &other) = delete;
+    AP_Arming_Sub &operator=(const AP_Arming_Sub&) = delete;
 
     bool rc_calibration_checks(bool display_failure) override;
     bool pre_arm_checks(bool display_failure) override;

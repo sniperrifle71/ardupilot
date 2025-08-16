@@ -19,7 +19,12 @@
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include "AP_GPS_ExternalAHRS.h"
 
-#if AP_EXTERNAL_AHRS_ENABLED
+#if HAL_EXTERNAL_AHRS_ENABLED
+
+AP_GPS_ExternalAHRS::AP_GPS_ExternalAHRS(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UARTDriver *_port) :
+    AP_GPS_Backend(_gps, _state, _port)
+{
+}
 
 // Reading does nothing in this class; we simply return whether or not
 // the latest reading has been consumed.  By calling this function we assume
@@ -41,24 +46,17 @@ void AP_GPS_ExternalAHRS::handle_external(const AP_ExternalAHRS::gps_data_messag
 
     state.time_week = pkt.gps_week;
     state.time_week_ms = pkt.ms_tow;
-    if (pkt.fix_type == AP_GPS_FixType::NO_GPS) {
+    if (pkt.fix_type == 0) {
         state.status = AP_GPS::NO_FIX;
     } else {
         state.status = (AP_GPS::GPS_Status)pkt.fix_type;
     }
     state.num_sats = pkt.satellites_in_view;
 
-    const Location loc {
-        pkt.latitude,
-        pkt.longitude,
-        pkt.msl_altitude,
-        Location::AltFrame::ABSOLUTE
-    };
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    if (!loc.initialised() && state.status >= AP_GPS::GPS_Status::GPS_OK_FIX_2D) {
-        AP_HAL::panic("Invalid location passed to AP_GPS_ExternalAHRS");
-    }
-#endif
+    Location loc = {};
+    loc.lat = pkt.latitude;
+    loc.lng = pkt.longitude;
+    loc.alt = pkt.msl_altitude;
 
     state.location = loc;
     state.hdop = pkt.hdop;
@@ -69,7 +67,8 @@ void AP_GPS_ExternalAHRS::handle_external(const AP_ExternalAHRS::gps_data_messag
     state.velocity.y = pkt.ned_vel_east;
     state.velocity.z = pkt.ned_vel_down;
 
-    velocity_to_speed_course(state);
+    state.ground_course = wrap_360(degrees(atan2f(state.velocity.y, state.velocity.x)));
+    state.ground_speed = norm(state.velocity.y, state.velocity.x);
 
     state.have_speed_accuracy = true;
     state.have_horizontal_accuracy = true;
@@ -95,5 +94,5 @@ bool AP_GPS_ExternalAHRS::get_lag(float &lag_sec) const
     return true;
 }
 
-#endif // AP_EXTERNAL_AHRS_ENABLED
+#endif // HAL_EXTERNAL_AHRS_ENABLED
 

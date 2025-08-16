@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 '''
 decode an stm32 ICSR register value
 
@@ -28,7 +28,7 @@ class DecodeICSR(object):
             ("25", "PENDSTCLR", self.decoder_m4_pendstclr),
             ("26", "PENDSTSET", self.decoder_m4_pendstset),
             ("27", "PENDSVCLR", self.decoder_m4_pendsvclr),
-            ("28", "PENDSVSET", self.decoder_m4_pendsvset),
+            ("28", "PENDSVSET", self.decoder_m4_pendstset),
             ("29-30", "RESERVED4", None),
             ("31", "NMIPENDSET", self.decoder_m4_nmipendset),
         ]
@@ -78,7 +78,7 @@ class DecodeICSR(object):
         if value:
             out = "Interrupt pending"
         else:
-            out = "No pending interrupt"
+            out = "No pending interupt"
         return (" (%s)" % out)
 
     def decoder_m4_pendstclr(self, value):

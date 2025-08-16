@@ -1,9 +1,8 @@
 #include "AP_Compass_SITL.h"
 
-#if AP_COMPASS_SITL_ENABLED
-
 #include <AP_HAL/AP_HAL.h>
 
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 extern const AP_HAL::HAL& hal;
 
 AP_Compass_SITL::AP_Compass_SITL()
@@ -22,10 +21,8 @@ AP_Compass_SITL::AP_Compass_SITL()
                 _compass_instance[_num_compass] = instance;
                 set_dev_id(_compass_instance[_num_compass], dev_id);
 
-                if (_sitl->mag_save_ids) {
-                    // save so the compass always comes up configured in SITL
-                    save_dev_id(_compass_instance[_num_compass]);
-                }
+                // save so the compass always comes up configured in SITL
+                save_dev_id(_compass_instance[_num_compass]);
                 set_rotation(instance, ROTATION_NONE);
                 _num_compass++;
             }
@@ -53,7 +50,7 @@ AP_Compass_SITL::AP_Compass_SITL()
 
 
 /*
-  create correction matrix for diagonals and off-diagonals
+  create correction matrix for diagnonals and off-diagonals
 */
 void AP_Compass_SITL::_setup_eliptical_correcion(uint8_t i)
 {
@@ -130,7 +127,12 @@ void AP_Compass_SITL::_timer()
         Vector3f f = (_eliptical_corr * new_mag_data) - _sitl->mag_ofs[i].get();
         // rotate compass
         f.rotate_inverse((enum Rotation)_sitl->mag_orient[i].get());
-        f.rotate(get_board_orientation());
+        // and add in AHRS_ORIENTATION setting if not an external compass
+        if (get_board_orientation() == ROTATION_CUSTOM) {
+            f = _sitl->ahrs_rotation * f;
+        } else {
+            f.rotate(get_board_orientation());
+        }
         // scale the compass to simulate sensor scale factor errors
         f *= _sitl->mag_scaling[i];
 
@@ -156,4 +158,4 @@ void AP_Compass_SITL::read()
         drain_accumulated_samples(_compass_instance[i], nullptr);
     }
 }
-#endif  // AP_COMPASS_SITL_ENABLED
+#endif

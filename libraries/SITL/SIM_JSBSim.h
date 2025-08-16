@@ -18,11 +18,7 @@
 
 #pragma once
 
-#include "SIM_config.h"
-
-#if AP_SIM_JSBSIM_ENABLED
-
-#include <AP_HAL/utility/Socket_native.h>
+#include <AP_HAL/utility/Socket.h>
 
 #include "SIM_Aircraft.h"
 
@@ -40,15 +36,15 @@ public:
 
     /* static object creator */
     static Aircraft *create(const char *frame_str) {
-        return NEW_NOTHROW JSBSim(frame_str);
+        return new JSBSim(frame_str);
     }
 
 private:
     // tcp input control socket to JSBSIm
-    SocketAPM_native sock_control;
+    SocketAPM sock_control;
 
     // UDP packets from JSBSim in fgFDM format
-    SocketAPM_native sock_fgfdm;
+    SocketAPM sock_fgfdm;
 
     bool initialised;
 
@@ -84,10 +80,6 @@ private:
     void drain_control_socket();
 };
 
-} // namespace SITL
-#endif  // AP_SIM_JSBSIM_ENABLED
-
-namespace SITL {
 /*
   FGNetFDM class from JSBSim
  */
@@ -183,4 +175,4 @@ public:
     void ByteSwap(void);
 };
 
-}  // end namespace SITL
+} // namespace SITL

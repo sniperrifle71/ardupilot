@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 
 import sys, fnmatch
 import importlib
@@ -17,7 +15,7 @@ def check_possibility(periph, dma_stream, curr_dict, dma_map, check_list, cannot
     global ignore_list
     if debug:
         print('............ Checking ', periph, dma_stream, 'without', cannot_use_stream)
-    for other_periph in sorted(curr_dict.keys()):
+    for other_periph in curr_dict:
         if other_periph != periph:
             if curr_dict[other_periph] == dma_stream:
                 if other_periph in forbidden_map[periph]:
@@ -69,9 +67,9 @@ def can_share(periph, noshare_list):
     return False
 
 
-# list of peripherals that are on DMAMUX2 and BDMA
+# list of peripherals on H7 that are on DMAMUX2 and BDMA
 have_DMAMUX = False
-DMAMUX2_peripherals = []
+DMAMUX2_peripherals = [ 'I2C4', 'SPI6', 'ADC3' ]
 
 def dmamux_channel(key):
     '''return DMAMUX channel for H7'''
@@ -233,16 +231,13 @@ def generate_DMAMUX_map(peripheral_list, noshare_list, dma_exclude, stream_ofs):
         else:
             dmamux1_peripherals.append(p)
     map1 = generate_DMAMUX_map_mask(dmamux1_peripherals, 0xFFFF, noshare_list, dma_exclude, stream_ofs)
-    # there are 8 BDMA streams, but an issue has been found where if I2C4 and
-    # SPI6 use neighboring streams then we sometimes lose a BDMA completion
-    # interrupt. We also found that both ADC3 and SPI6_RX can't use the first
-    # stream. To avoid more complications we now statically allocate the BDMA
-    # streams for the 3 possible peripherals. To keep this code simpler we
-    # still have the mapping code here, but it ends not not being used and the
-    # static allocation is in stm32h7_mcuconf.h
-    map2 = generate_DMAMUX_map_mask(dmamux2_peripherals, 0xff, noshare_list, dma_exclude, stream_ofs)
+    # there are 8 BDMA channels, but an issue has been found where if I2C4 and SPI6
+    # use neighboring channels then we sometimes lose a BDMA completion interrupt. To
+    # avoid this we set the BDMA available mask to 0x33, which forces the channels not to be
+    # adjacent. This issue was found on a CUAV-X7, with H743 RevV.
+    map2 = generate_DMAMUX_map_mask(dmamux2_peripherals, 0x55, noshare_list, dma_exclude, stream_ofs)
     # translate entries from map2 to "DMA controller 3", which is used for BDMA
-    for p in sorted(map2.keys()):
+    for p in map2.keys():
         streams = []
         for (controller,stream) in map2[p]:
             streams.append((3,stream))
@@ -295,14 +290,10 @@ def forbidden_list(p, peripheral_list):
 
 
 def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
-                     dma_priority='', dma_noshare=[], quiet=False):
+                     dma_priority='', dma_noshare=[]):
     '''write out a DMA resolver header file'''
     global dma_map, have_DMAMUX, has_bdshot
     timer_ch_periph = []
-
-    if mcu_type.startswith('STM32H7'):
-        global DMAMUX2_peripherals
-        DMAMUX2_peripherals = [ 'I2C4', 'SPI6', 'ADC3' ]
 
     has_bdshot = False
 
@@ -337,8 +328,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
 
         dma_map = generate_DMAMUX_map(peripheral_list, noshare_list, dma_exclude, stream_ofs)
 
-    if not quiet:
-        print("Writing DMA map")
+    print("Writing DMA map")
     unassigned = []
     curr_dict = {}
 
@@ -347,24 +337,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
     for p in peripheral_list:
         forbidden_map[p] = forbidden_list(p, peripheral_list)
 
-    # force sharing of TIMx_UP and TIMx_CHy if possible
-    periphs = peripheral_list.copy()
-    forbidden_streams = []
     for periph in peripheral_list:
-        if "_UP" in periph:
-            for periph2 in peripheral_list:
-                if "_CH" in periph2 and periph[:4] == periph2[:4]:
-                    shared_channels = [value for value in dma_map[periph] if value in dma_map[periph2]]
-                    if len(shared_channels) > 0:
-                        stream = (shared_channels[0][0], shared_channels[0][1])
-                        curr_dict[periph] = stream
-                        curr_dict[periph2] = stream
-                        forbidden_streams.append(stream)
-                        periphs.remove(periph)
-                        periphs.remove(periph2)
-                        print("Sharing channel %s for %s %s" % (stream, periph, periph2))
-
-    for periph in periphs:
         if "_CH" in periph:
             has_bdshot = True # the list contains a CH port
         if periph in dma_exclude:
@@ -383,7 +356,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
                 print('........Possibility for', periph, streamchan)
             stream = (streamchan[0], streamchan[1])
             if check_possibility(periph, stream, curr_dict, dma_map,
-                                 check_list, forbidden_streams, forbidden_map):
+                                 check_list, [], forbidden_map):
                 curr_dict[periph] = stream
                 if debug:
                     print ('....................... Setting', periph, stream)
@@ -398,7 +371,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
 
     # now look for shared DMA possibilities
     stream_assign = {}
-    for k in sorted(curr_dict.keys()):
+    for k in curr_dict.keys():
         p = curr_dict[k]
         if not p in stream_assign:
             stream_assign[p] = [k]
@@ -478,14 +451,11 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
         else:
             dma_controller = curr_dict[key][0]
             if dma_controller == 3:
-                # BDMA resources turn out to be very strange on H743. For now
-                # we will skip trying to allocate them automatically and
-                # instead rely on allocation in stm32h7_mcuconf.h.
-                continue
-            else:
-                f.write("#define %-30s STM32_DMA_STREAM_ID(%u, %u)%s\n" %
-                        (chibios_dma_define_name(key)+'STREAM', dma_controller,
-                             curr_dict[key][1], shared))
+                # for BDMA we use 3 in the resolver
+                dma_controller = 1
+            f.write("#define %-30s STM32_DMA_STREAM_ID(%u, %u)%s\n" %
+                    (chibios_dma_define_name(key)+'STREAM', dma_controller,
+                        curr_dict[key][1], shared))
             if have_DMAMUX and "_UP" in key:
                 # share the dma with rest of the _CH ports
                 for ch in range(1,5):
@@ -495,7 +465,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
                     f.write("#define %-30s STM32_DMA_STREAM_ID(%u, %u)%s\n" %
                         (chibios_dma_define_name(chkey)+'STREAM', dma_controller,
                             curr_dict[key][1], shared))
-        for streamchan in sorted(dma_map[key]):
+        for streamchan in dma_map[key]:
             if stream == (streamchan[0], streamchan[1]):
                 if have_DMAMUX:
                     chan = dmamux_channel(key)
@@ -518,7 +488,7 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
     if len(shared_set) == 0:
         f.write("#define SHARED_DMA_MASK 0\n")
     else:
-        f.write("#define SHARED_DMA_MASK (%s)\n" % '|'.join(sorted(list(shared_set))))
+        f.write("#define SHARED_DMA_MASK (%s)\n" % '|'.join(list(shared_set)))
 
     # now generate UARTDriver.cpp DMA config lines
     f.write("\n\n// generated UART DMA configuration lines\n")
@@ -562,13 +532,8 @@ def write_dma_header(f, peripheral_list, mcu_type, dma_exclude=[],
             key = 'SPI%u' % u
         else:
             continue
-        if dma_name(key) == 'BDMA':
-            # we use SHARED_DMA_NONE for SPI6 on H7 as we don't need to lock the stream
-            # as it is never shared
-            f.write('#define STM32_SPI_%s_DMA_STREAMS SHARED_DMA_NONE, SHARED_DMA_NONE\n' % key)
-        else:
-            f.write('#define STM32_SPI_%s_DMA_STREAMS STM32_SPI_%s_TX_%s_STREAM, STM32_SPI_%s_RX_%s_STREAM\n' % (
-                key, key, dma_name(key), key, dma_name(key)))
+        f.write('#define STM32_SPI_%s_DMA_STREAMS STM32_SPI_%s_TX_%s_STREAM, STM32_SPI_%s_RX_%s_STREAM\n' % (
+            key, key, dma_name(key), key, dma_name(key)))
     return unassigned, ordered_timers
 
 

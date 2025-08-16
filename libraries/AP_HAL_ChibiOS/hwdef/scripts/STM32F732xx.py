@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-
-# flake8: noqa
+#!/usr/bin/env python
 '''
 these tables are generated from the STM32 datasheets for the
 STM32F732
@@ -25,10 +23,6 @@ mcu = {
     ],
 
     'EXPECTED_CLOCK' : 216000000,
-
-    'DEFINES' : {
-        'STM32F7' : '1',
-    },
 
     # this board has M7 instructions, but single precision only FPU
     # we build as m4 as it makes for a smaller build, and given the 1M

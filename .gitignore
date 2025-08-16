@@ -4,7 +4,6 @@
 /Tools/autotest/ch7_mission.txt
 /Tools/autotest/param_metadata/Parameters.html
 /Tools/autotest/param_metadata/Parameters.rst
-/Tools/autotest/param_metadata/ParametersLatex.rst
 /Tools/autotest/param_metadata/Parameters.wiki
 /Tools/autotest/param_metadata/Parameters.md
 /Tools/autotest/param_metadata/apm.pdef.xml
@@ -15,7 +14,7 @@
 /Tools/autotest/jsbsim_start_0.xml
 /Tools/autotest/rover-ch7_mission.txt
 /tmp/*
-# Exclude all bins but allow font bins and bootloaders
+# Exclude all bins but allow font bins
 *.bin
 !*_bl.bin
 !font*.bin
@@ -36,7 +35,6 @@
 *.vbrain
 *.vrx
 *.zip
-!Tools/autotest/tilecache/**/*.zip
 *~
 .*.swo
 .*.swp
@@ -82,6 +80,7 @@ Thumbs.db
 autotest.lck
 build
 cmake_install.cmake
+config.mk
 cscope.in.out
 cscope.out
 cscope.po.out
@@ -92,14 +91,6 @@ logs/
 mav.log
 mav.log.raw
 mav.parm
-mission.stg
-/defaults.parm
-/ArduCopter/defaults.parm
-/ArduPlane/defaults.parm
-/AntennaTracker/defaults.parm
-/ArduSub/defaults.parm
-/Blimp/defaults.parm
-/Rover/defaults.parm
 mk/PX4/ROMFS/default.parm
 module.mk
 serialsent.raw
@@ -110,11 +101,10 @@ test.ArduCopter/*
 GPATH
 GRTAGS
 GTAGS
+config.mk
 *.apj
 .gdbinit
-.vscode/*
-!.vscode/extensions.json
-/.history
+/.vscode
 Parameters.html
 Parameters.md
 Parameters.rst
@@ -127,7 +117,6 @@ parameters.edn
 LogMessages.html
 LogMessages.rst
 LogMessages.xml
-LogMessages.md
 # JetBrains IDE files
 .idea/*
 # CMake
@@ -151,25 +140,6 @@ segv_*out
 /ArduSub/scripts/
 /ArduSub/repl/
 persistent.dat
-dumpstack*out
-dumpcore*out
+dumpstack_*out
 build.tmp.binaries/
 tasklist.json
-modules/esp_idf
-
-# lua-language-server linter
-ScriptingDocs.md
-/lua-language-server/
-repo-LuaLS-lua-language-server.cache
-
-# Ignore Python virtual environments
-#   from: https://github.com/github/gitignore/blob/4488915eec0b3a45b5c63ead28f286819c0917de/Python.gitignore#L125
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-autotest_result_*_junit.xml
-.python-version

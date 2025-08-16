@@ -24,8 +24,13 @@ class AP_MSP_Telem_Generic : public AP_MSP_Telem_Backend
 {
     using AP_MSP_Telem_Backend::AP_MSP_Telem_Backend;
 public:
-    bool is_scheduler_enabled() const override { return false; }
-    AP_SerialManager::SerialProtocol get_serial_protocol() const override { return AP_SerialManager::SerialProtocol::SerialProtocol_MSP; };
+    bool is_scheduler_enabled() override
+    {
+        return false;
+    }
+    MSP::MSPCommandResult msp_process_out_api_version(MSP::sbuf_t *dst) override;
+    MSP::MSPCommandResult msp_process_out_fc_version(MSP::sbuf_t *dst) override;
+    MSP::MSPCommandResult msp_process_out_fc_variant(MSP::sbuf_t *dst) override;
 };
 
 #endif //HAL_MSP_ENABLED

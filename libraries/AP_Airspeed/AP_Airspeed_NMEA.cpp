@@ -18,17 +18,20 @@
  *   https://gpsd.gitlab.io/gpsd/NMEA.html#_mtw_mean_temperature_of_water
  */
 
-#include "AP_Airspeed_NMEA.h"
-
-#if AP_AIRSPEED_NMEA_ENABLED
-
-#include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 #if APM_BUILD_TYPE(APM_BUILD_Rover) || APM_BUILD_TYPE(APM_BUILD_ArduSub) 
 
+#include "AP_Airspeed_NMEA.h"
 #include "AP_Airspeed.h"
-#include <AP_SerialManager/AP_SerialManager.h>
 
 #define TIMEOUT_MS 2000
+
+extern const AP_HAL::HAL &hal;
+
+AP_Airspeed_NMEA::AP_Airspeed_NMEA(AP_Airspeed &_frontend, uint8_t _instance) :
+    AP_Airspeed_Backend(_frontend, _instance)
+{
+}
 
 bool AP_Airspeed_NMEA::init()
 {
@@ -38,8 +41,6 @@ bool AP_Airspeed_NMEA::init()
     if (_uart == nullptr) {
         return false;
     }
-
-    set_bus_id(AP_HAL::Device::make_bus_id(AP_HAL::Device::BUS_TYPE_SERIAL,0,0,0));
 
     _uart->begin(serial_manager.find_baudrate(AP_SerialManager::SerialProtocol_AirSpeed, 0));
 
@@ -66,11 +67,8 @@ bool AP_Airspeed_NMEA::get_airspeed(float &airspeed)
     uint16_t count = 0;
     int16_t nbytes = _uart->available();
     while (nbytes-- > 0) {
-        int16_t c = _uart->read();
-        if (c==-1) {
-            return false;
-        }
-        if (decode(char(c))) {
+        char c = _uart->read();
+        if (decode(c)) {
             _last_update_ms = now;
             if (_sentence_type == TYPE_VHW) {
                 sum += _speed;
@@ -96,7 +94,7 @@ bool AP_Airspeed_NMEA::get_airspeed(float &airspeed)
 }
 
 // return the current temperature in degrees C
-// the main update is done in the get_pressure function
+// the main update is done in the get_pressue function
 // this just reports the value
 bool AP_Airspeed_NMEA::get_temperature(float &temperature)
 {
@@ -218,5 +216,3 @@ bool AP_Airspeed_NMEA::decode_latest_term()
 }
 
 #endif  // APM_BUILD_TYPE(APM_BUILD_Rover) || APM_BUILD_TYPE(APM_BUILD_ArduSub) 
-
-#endif  // AP_AIRSPEED_NMEA_ENABLED

@@ -14,13 +14,10 @@
  */
 #pragma once
 
-#include "AP_Beacon.h"
-
-#if AP_BEACON_ENABLED
-
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
 #include <AP_HAL/AP_HAL.h>
+#include "AP_Beacon.h"
 
 class AP_Beacon_Backend
 {
@@ -62,8 +59,4 @@ protected:
 
     // yaw correction methods
     Vector3f correct_for_orient_yaw(const Vector3f &vector);
-
-    AP_HAL::UARTDriver *uart;
 };
-
-#endif  // AP_BEACON_ENABLED
