@@ -223,6 +223,7 @@ public:
     friend class ModeZigZag;
     friend class ModeAutorotate;
     friend class ModeTurtle;
+    friend class ModeDrawStar;  // 这里必须加上，否则无法在模式中调用copter对象
 
     friend class _AutoTakeoff;
 
@@ -1027,6 +1028,11 @@ private:
 #if MODE_GUIDED_ENABLED
     ModeGuided mode_guided;
 #endif
+
+#if MODE_DRAWSTAR_ENABLED
+    ModeDrawStar mode_drawstar;
+#endif
+
     ModeLand mode_land;
 #if MODE_LOITER_ENABLED
     ModeLoiter mode_loiter;

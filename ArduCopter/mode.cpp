@@ -73,6 +73,13 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             break;
 #endif
 
+#if MODE_DRAWSTAR_ENABLED
+        case Mode::Number::DRAW_STAR:
+            ret = &mode_drawstar;
+            gcs().send_text(MAV_SEVERITY_INFO, "Draw star mode enabled");
+            break;
+#endif
+
         case Mode::Number::LAND:
             ret = &mode_land;
             break;

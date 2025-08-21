@@ -1,0 +1,137 @@
+#include "Copter.h"
+
+#if MODE_DRAWSTAR_ENABLED
+
+/*
+ * 五角星航线模式初始化
+ */
+bool ModeDrawStar::init(bool ignore_checks)
+{
+    // set speed and acceleration limits
+    pos_control->set_max_speed_accel_xy(wp_nav->get_default_speed_xy(), wp_nav->get_wp_acceleration());
+    pos_control->set_correction_speed_accel_xy(wp_nav->get_default_speed_xy(), wp_nav->get_wp_acceleration());
+    pos_control->set_max_speed_accel_z(-get_pilot_speed_dn(), g.pilot_speed_up, g.pilot_accel_z);
+    pos_control->set_correction_speed_accel_z(-get_pilot_speed_dn(), g.pilot_speed_up, g.pilot_accel_z);
+    path_num = 0;  // 航点号清零，从而切到其他模式再切回来后，可以飞出一个新的五角星航线
+    generate_path();  // 生成五角星航线
+
+    pos_control_start();  // 开始位置控制
+
+    return true;
+}
+
+// 生成五角星航线
+void ModeDrawStar::generate_path()
+{
+    float radius_cm = 1000.0;
+
+    wp_nav->get_wp_stopping_point(path[0]);
+    gcs().send_text(MAV_SEVERITY_INFO, "Starting point: %.2f, %.2f, %.2f", path[0].x, path[0].y, path[0].z);
+
+    path[1] = path[0] + Vector3f(1.0f, 0, 0) * radius_cm;
+    path[2] = path[0] + Vector3f(-cosf(radians(36.0f)), -sinf(radians(36.0f)), 0) * radius_cm;
+    path[3] = path[0] + Vector3f(sinf(radians(18.0f)), cosf(radians(18.0f)), 0) * radius_cm;
+    path[4] = path[0] + Vector3f(sinf(radians(18.0f)), -cosf(radians(18.0f)), 0) * radius_cm;
+    path[5] = path[0] + Vector3f(-cosf(radians(36.0f)), sinf(radians(36.0f)), 0) * radius_cm;
+    path[6] = path[1];
+}
+
+// 开始位置控制
+void ModeDrawStar::pos_control_start()
+{
+    gcs().send_text(MAV_SEVERITY_INFO, "Starting position control");
+
+
+    // initialise waypoint and spline controller
+    wp_nav->wp_and_spline_init(100.0f, path[0]);  // 100cm/s is a good default speed for this mode
+
+    // no need to check return status because terrain data is not used
+    wp_nav->set_wp_destination(path[path_num], false);
+
+    // initialise yaw
+    auto_yaw.set_mode_to_default(false);
+}
+
+// 此模式的周期调用
+void ModeDrawStar::run()
+{
+    if (path_num < 6) {  // 五角星航线尚未走完
+        gcs().send_text(MAV_SEVERITY_INFO, wp_nav->reached_wp_destination() ? "true" : "false");
+        if (wp_nav->reached_wp_destination()) {  // 到达某个端点
+            path_num++;
+            wp_nav->set_wp_destination(path[path_num], false);  // 将下一个航点位置设置为导航控制模块的目标位置
+            gcs().send_text(MAV_SEVERITY_INFO, "Current waypoint: %d", path_num);
+        }
+    } else if ((path_num == 6) && wp_nav->reached_wp_destination()) {  // 五角星航线运行完成，自动进入Loiter模式
+        gcs().send_text(MAV_SEVERITY_INFO, "Draw star finished, now go into loiter mode");
+        copter.set_mode(Mode::Number::LOITER, ModeReason::MISSION_END);  // 切换到loiter模式
+    }
+
+    pos_control_run();  // 位置控制器
+}
+
+void ModeDrawStar::pos_control_run()  // 注意，此函数直接从mode_guided.cpp中复制过来，不需要该其中的内容
+{
+    // process pilot's yaw input
+    float target_yaw_rate = 0;
+    if (!copter.failsafe.radio) {
+        // get pilot's desired yaw rate
+        target_yaw_rate = get_pilot_desired_yaw_rate();
+        if (!is_zero(target_yaw_rate)) {
+            auto_yaw.set_mode(AutoYaw::Mode::HOLD);
+        }
+    }
+
+    // if not armed set throttle to zero and exit immediately
+    if (is_disarmed_or_landed()) {
+        make_safe_ground_handling(copter.is_tradheli() && motors->get_interlock());
+        return;
+    }
+
+    // set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // run waypoint controller
+    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+
+    // call z-axis position controller (wpnav should have already updated it's alt target)
+    pos_control->update_z_controller();
+
+    // call attitude controller
+    if (auto_yaw.mode() == AutoYaw::Mode::HOLD) {
+        // roll & pitch from waypoint controller, yaw rate from pilot
+        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
+    } else if (auto_yaw.mode() == AutoYaw::Mode::RATE) {
+        // roll & pitch from waypoint controller, yaw rate from mavlink command or mission item
+        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.get_heading().yaw_angle_cd);
+    } else {
+        // roll, pitch from waypoint controller, yaw heading from GCS or auto_heading()
+        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.get_heading().yaw_rate_cds, true);
+    }
+}
+
+// // pos_control_run - runs the guided position controller
+// void ModeDrawStar::pos_control_run()
+// {
+//     // if not armed set throttle to zero and exit immediately
+//     if (is_disarmed_or_landed()) {
+//         // do not spool down tradheli when on the ground with motor interlock enabled
+//         make_safe_ground_handling(copter.is_tradheli() && motors->get_interlock());
+//         return;
+//     }
+
+
+
+//     // set motors to full range
+//     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+//     // run position controllers
+//     pos_control->update_xy_controller();
+//     pos_control->update_z_controller();
+
+//     // call attitude controller with auto yaw
+//     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
+// }
+
+
+#endif
