@@ -23,10 +23,10 @@ bool ModeDrawStar::init(bool ignore_checks)
 // 生成五角星航线
 void ModeDrawStar::generate_path()
 {
-    float radius_cm = 1000.0;
+    float radius_cm = g2.draw_star_radius_cm;
+    g2.draw_star_radius_cm.set_and_save(1);
 
     wp_nav->get_wp_stopping_point(path[0]);
-    gcs().send_text(MAV_SEVERITY_INFO, "Starting point: %.2f, %.2f, %.2f", path[0].x, path[0].y, path[0].z);
 
     path[1] = path[0] + Vector3f(1.0f, 0, 0) * radius_cm;
     path[2] = path[0] + Vector3f(-cosf(radians(36.0f)), -sinf(radians(36.0f)), 0) * radius_cm;
@@ -39,7 +39,6 @@ void ModeDrawStar::generate_path()
 // 开始位置控制
 void ModeDrawStar::pos_control_start()
 {
-    gcs().send_text(MAV_SEVERITY_INFO, "Starting position control");
 
 
     // initialise waypoint and spline controller
@@ -56,7 +55,6 @@ void ModeDrawStar::pos_control_start()
 void ModeDrawStar::run()
 {
     if (path_num < 6) {  // 五角星航线尚未走完
-        gcs().send_text(MAV_SEVERITY_INFO, wp_nav->reached_wp_destination() ? "true" : "false");
         if (wp_nav->reached_wp_destination()) {  // 到达某个端点
             path_num++;
             wp_nav->set_wp_destination(path[path_num], false);  // 将下一个航点位置设置为导航控制模块的目标位置
