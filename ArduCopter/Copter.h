@@ -72,6 +72,8 @@
 #include <AP_OpticalFlow/AP_OpticalFlow.h>
 #include <AP_Winch/AP_Winch_config.h>
 #include <AP_SurfaceDistance/AP_SurfaceDistance.h>
+#include <AP_OpenMV/AP_OpenMV.h>
+
 
 // Configuration
 #include "defines.h"
@@ -553,6 +555,8 @@ private:
     AP_Avoidance_Copter avoidance_adsb{adsb};
 #endif
 
+    AP_OpenMV openmv{};
+
     // last valid RC input time
     uint32_t last_radio_update_ms;
 
@@ -701,6 +705,7 @@ private:
     void rc_loop();
     void throttle_loop();
     void update_batt_compass(void);
+    void update_openmv(void);
     void loop_rate_logging();
     void ten_hz_logging_loop();
     void twentyfive_hz_logging();
