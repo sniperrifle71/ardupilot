@@ -386,6 +386,27 @@ void Copter::Log_Write_Guided_Attitude_Target(ModeGuided::SubMode target_type, f
     logger.WriteBlock(&pkt, sizeof(pkt));
 }
 
+
+struct PACKED log_OpenMV_Data {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t cx;
+    uint8_t cy;
+
+};
+
+//Write OpenMV Data
+void Copter::Log_Write_OpenMV_Data()
+{
+    const log_OpenMV_Data pkt {
+        LOG_PACKET_HEADER_INIT(LOG_OPENMV_DATA_MSG),
+        time_us         : AP_HAL::micros64(),
+        cx              : openmv.cx,  // openmv              : pos.x
+        cy              : openmv.cy   // openmv              : pos.y
+    };
+    logger.WriteBlock(&pkt, sizeof(pkt));
+}
+
 // type and unit information can be found in
 // libraries/AP_Logger/Logstructure.h; search for "log_Units" for
 // units and "Format characters" for field type information
@@ -462,6 +483,8 @@ const struct LogStructure Copter::log_structure[] = {
       "DU32",  "QBI",         "TimeUS,Id,Value", "s--", "F--" },
     { LOG_DATA_FLOAT_MSG, sizeof(log_Data_Float),         
       "DFLT",  "QBf",         "TimeUS,Id,Value", "s--", "F--" },
+    { LOG_OPENMV_DATA_MSG, sizeof(log_OpenMV_Data),
+      "OMV",  "QBB",    "TimeUS,cx,cy", "s--", "F--" },
 
 // @LoggerMessage: SIDD
 // @Description: System ID data
@@ -528,6 +551,9 @@ const struct LogStructure Copter::log_structure[] = {
     { LOG_GUIDED_ATTITUDE_TARGET_MSG, sizeof(log_Guided_Attitude_Target),
       "GUIA",  "QBffffffff",    "TimeUS,Type,Roll,Pitch,Yaw,RollRt,PitchRt,YawRt,Thrust,ClimbRt", "s-dddkkk-n", "F-000000-0" , true },
 };
+
+
+    
 
 uint8_t Copter::get_num_log_structures() const
 {

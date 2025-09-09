@@ -567,7 +567,62 @@ void Copter::update_batt_compass(void)
 
 void Copter::update_openmv(void)
 {
+    bool sim_openmv_data = false;
+    static uint32_t last_sim_openmv_data = millis();
     openmv.update();
+    if(flightmode->in_guided_mode()==false){
+        sim_openmv_data = false;
+        last_sim_openmv_data = millis();
+        openmv.cx = 80;
+        openmv.cy = 60;
+    }
+    else if(last_sim_openmv_data<15000){
+        sim_openmv_data = true;
+        last_sim_openmv_data = millis();
+        openmv.cx = 1;
+        openmv.cy = 1;
+    }
+    else if(last_sim_openmv_data<30000){
+        sim_openmv_data = true;
+        last_sim_openmv_data = millis();
+        openmv.cx = 160;
+        openmv.cy = 120;
+    }
+    else{
+        sim_openmv_data = false;
+        openmv.cx = 80;
+        openmv.cy = 60;
+    }
+
+    static uint32_t last_set_target_pos_time_ms = 0;
+    Vector3f target = Vector3f(0,0,0); 
+    if (openmv.update()||sim_openmv_data){
+        Log_Write_OpenMV_Data();
+        if (flightmode->in_guided_mode()==false){
+            return;
+        }
+        int16_t target_body_frame_y = (int16_t)openmv.cx - 80;
+        int16_t target_body_frame_z = (int16_t)openmv.cy - 60;
+
+        float angle_y_deg = target_body_frame_y*60.0f/160.0f;
+        float angle_z_deg = target_body_frame_z*60.0f/120.0f;
+
+        Vector3f v = Vector3f(1.0f, tanf(radians(angle_y_deg)), tanf(radians(angle_z_deg)));
+        v.normalize();
+        // rotate to NED frame
+        const Matrix3f& rotMat = copter.ahrs.get_rotation_body_to_ned();
+        v = rotMat * v;
+        target = v * 10000.0f;
+        target.z = -target.z; // convert to NEU
+        Vector3f current_pos = inertial_nav.get_position_neu_cm();
+        target = target + current_pos;
+        if(millis()-last_set_target_pos_time_ms>500){
+            mode_guided.set_destination(target);
+            last_set_target_pos_time_ms = millis();
+        }
+
+
+    }
 }
 
 #if HAL_LOGGING_ENABLED
