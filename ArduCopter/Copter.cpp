@@ -568,23 +568,24 @@ void Copter::update_batt_compass(void)
 void Copter::update_openmv(void)
 {
     bool sim_openmv_data = false;
-    static uint32_t last_sim_openmv_data = millis();
+    static uint32_t last_sim_openmv_data = 0;
     openmv.update();
     if(flightmode->in_guided_mode()==false){
-        sim_openmv_data = false;
         last_sim_openmv_data = millis();
+        sim_openmv_data = false;
+        openmv.last_frame_ms = millis();
         openmv.cx = 80;
         openmv.cy = 60;
     }
-    else if(last_sim_openmv_data<15000){
+    else if(millis()-last_sim_openmv_data<15000){
         sim_openmv_data = true;
-        last_sim_openmv_data = millis();
+        openmv.last_frame_ms = millis();
         openmv.cx = 1;
         openmv.cy = 1;
     }
-    else if(last_sim_openmv_data<30000){
+    else if(millis()-last_sim_openmv_data<30000){
         sim_openmv_data = true;
-        last_sim_openmv_data = millis();
+        openmv.last_frame_ms = millis();
         openmv.cx = 160;
         openmv.cy = 120;
     }
@@ -592,6 +593,7 @@ void Copter::update_openmv(void)
         sim_openmv_data = false;
         openmv.cx = 80;
         openmv.cy = 60;
+        openmv.last_frame_ms = millis();
     }
 
     static uint32_t last_set_target_pos_time_ms = 0;
@@ -746,6 +748,9 @@ void Copter::three_hz_loop()
 
     // check if avoidance should be enabled based on alt
     low_alt_avoidance();
+    // update OpenMV data
+    update_openmv();
+    
 }
 
 // one_hz_loop - runs at 1Hz
@@ -759,7 +764,6 @@ void Copter::one_hz_loop()
 
     if (!motors->armed()) {
         update_using_interlock();
-
         // check the user hasn't updated the frame class or type
         motors->set_frame_class_and_type((AP_Motors::motor_frame_class)g2.frame_class.get(), (AP_Motors::motor_frame_type)g.frame_type.get());
 
